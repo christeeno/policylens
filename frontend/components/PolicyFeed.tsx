@@ -2,13 +2,20 @@
 
 import React from "react";
 
-interface PolicyItem {
+export interface PolicyItem {
   id: string;
   title: string;
   summary: string;
   date: string;
   link: string;
   source: string;
+  source_type: string;
+  publisher: string;
+  article_class: string;
+  classification_confidence: number;
+  classification_reasoning: string;
+  raw_text_preview: string;
+  full_text?: string;
 }
 
 interface Props {
@@ -28,6 +35,29 @@ function getSourceColor(source: string) {
       return "bg-[#10b981] text-white";
     default:
       return "bg-gray-600 text-white";
+  }
+}
+
+function getSourceTypeColor(sourceType: string) {
+  return sourceType === "OFFICIAL"
+    ? "bg-[#ffd166]/15 text-[#ffd166] border border-[#ffd166]/30"
+    : "bg-[#1b2434] text-[#8ab4ff] border border-[#8ab4ff]/20";
+}
+
+function getArticleClassColor(articleClass: string) {
+  switch (articleClass) {
+    case "OFFICIAL_POLICY":
+      return "bg-[#00d97e]/10 text-[#00d97e]";
+    case "NEWS_REPORT":
+      return "bg-[#3b82f6]/10 text-[#7fb0ff]";
+    case "PREVIEW":
+      return "bg-[#ffb020]/10 text-[#ffb020]";
+    case "COMMENTARY":
+      return "bg-[#ff6b6b]/10 text-[#ff8a8a]";
+    case "MARKET_REACTION":
+      return "bg-[#c084fc]/10 text-[#d8b4fe]";
+    default:
+      return "bg-[#1e1e2e] text-[#a0a0b8]";
   }
 }
 
@@ -56,13 +86,24 @@ export default function PolicyFeed({ policies, onSelect, selectedId, loading }: 
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-sm ${getSourceColor(p.source)}`}>
               {p.source}
             </span>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm ${getSourceTypeColor(p.source_type)}`}>
+              {p.source_type}
+            </span>
             <span className="text-xs text-[#6b6b8a]">
-              {new Date(p.date).toLocaleDateString()}
+              {p.date ? new Date(p.date).toLocaleDateString() : "Recent"}
             </span>
           </div>
           <h3 className="text-sm text-[#e8e8f0] font-medium line-clamp-2 leading-snug">
             {p.title}
           </h3>
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <span className={`text-[10px] font-semibold px-2 py-1 rounded ${getArticleClassColor(p.article_class)}`}>
+              {p.article_class}
+            </span>
+            <span className="text-[10px] text-[#6b6b8a] truncate max-w-[180px]">
+              {p.publisher}
+            </span>
+          </div>
         </div>
       ))}
     </div>

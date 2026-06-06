@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import os
 import re
@@ -8,6 +9,8 @@ from exposure_engine import get_exposure_score
 from index_loader import OfficialNiftyIndexUniverse
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 _UNIVERSE_LOADER: OfficialNiftyIndexUniverse | None = None
@@ -41,6 +44,8 @@ SUPPORTED_SECTOR_HINTS = {
     "real_estate": "housing, mortgages, developers, commercial and residential property",
 }
 SUPPORTED_SECTORS = sorted(SUPPORTED_SECTOR_HINTS.keys())
+EVENT_TYPES = {"OFFICIAL_POLICY", "NEWS_REPORT", "COMMENTARY", "PREVIEW", "MARKET_REACTION", "OTHER"}
+ACTIONABLE_EVENT_TYPES = {"OFFICIAL_POLICY", "NEWS_REPORT"}
 
 
 class SectorImpact(BaseModel):
@@ -52,6 +57,13 @@ class SectorImpact(BaseModel):
     reasoning: str
     evidence: str = ""
     is_supported_sector: bool
+
+
+class EventClassificationResult(BaseModel):
+    event_type: str
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    reasoning: str
+    is_actionable: bool
 
 
 class PolicyAnalysisResult(BaseModel):
@@ -187,6 +199,47 @@ POLICY TEXT:
 {policy_text}"""
 
 
+EVENT_CLASSIFIER_PROMPT_TEMPLATE = """You are classifying Indian finance and policy news for a policy-impact engine.
+
+Classify the text into exactly one category:
+- OFFICIAL_POLICY: a real policy decision, approval, circular, rule change, rate action, subsidy, ban, or official measure has been announced by an official issuer
+- NEWS_REPORT: a journalistically reported article describing a completed and concrete policy action
+- COMMENTARY: opinion, explainer, analysis, strategy, or editorial about policy
+- PREVIEW: anticipation of a coming decision, meeting, or announcement
+- MARKET_REACTION: coverage focused on price moves or investor reaction after news
+- OTHER: unrelated or too vague to classify
+
+Rules:
+1. Only classify as OFFICIAL_POLICY or NEWS_REPORT when the text clearly states that a concrete policy action has occurred.
+2. Use OFFICIAL_POLICY when the source context indicates a first-party issuer such as RBI, PIB, SEBI, Cabinet, or ministry release.
+3. Use NEWS_REPORT when a news outlet reports a completed policy decision.
+4. Headlines about an upcoming meeting or announcement are PREVIEW.
+5. Opinion pieces or investor explainers are COMMENTARY.
+6. Market move coverage is MARKET_REACTION even if it references a policy.
+7. Respond with JSON only.
+
+Examples:
+- "RBI raises repo rate by 50 basis points" from RBI -> OFFICIAL_POLICY
+- "Reuters: RBI raises repo rate by 50 basis points" -> NEWS_REPORT
+- "Reserve Bank of India to announce policy today" -> PREVIEW
+- "Why RBI's move may help banks" -> COMMENTARY
+- "Sensex rallies after RBI decision" -> MARKET_REACTION
+
+Required JSON schema:
+{{
+  "event_type": "<OFFICIAL_POLICY | NEWS_REPORT | COMMENTARY | PREVIEW | MARKET_REACTION | OTHER>",
+  "confidence_score": <float 0 to 1>,
+  "reasoning": "<one short sentence>"
+}}
+
+SOURCE CONTEXT:
+source_type={source_type}
+publisher={publisher}
+
+TEXT:
+{policy_text}"""
+
+
 def render_single_call_prompt(policy_text: str) -> str:
     sector_guide = "\n".join(
         f'- "{sector}": {description}'
@@ -196,6 +249,82 @@ def render_single_call_prompt(policy_text: str) -> str:
         sector_guide=sector_guide,
         policy_text=policy_text,
     )
+
+
+def render_event_classifier_prompt(
+    policy_text: str,
+    source_type: str = "",
+    publisher: str = "",
+) -> str:
+    return EVENT_CLASSIFIER_PROMPT_TEMPLATE.format(
+        policy_text=policy_text,
+        source_type=source_type or "UNKNOWN",
+        publisher=publisher or "UNKNOWN",
+    )
+
+
+def _normalize_event_classification_response(raw_response: dict, source_type: str = "") -> dict:
+    event_type = str(raw_response.get("event_type", "OTHER")).strip().upper()
+    if event_type == "POLICY_EVENT":
+        event_type = "OFFICIAL_POLICY" if str(source_type).upper() == "OFFICIAL" else "NEWS_REPORT"
+    if event_type not in EVENT_TYPES:
+        event_type = "OTHER"
+
+    normalized = {
+        "event_type": event_type,
+        "confidence_score": round(_coerce_float(raw_response.get("confidence_score"), 0.0), 2),
+        "reasoning": str(raw_response.get("reasoning", "")).strip(),
+        "is_actionable": event_type in ACTIONABLE_EVENT_TYPES,
+    }
+    EventClassificationResult.model_validate(normalized)
+    return normalized
+
+
+def classify_policy_event(
+    policy_text: str,
+    llm: Any | None = None,
+    source_type: str = "",
+    publisher: str = "",
+) -> dict:
+    if not policy_text or not policy_text.strip():
+        return {
+            "event_type": "OTHER",
+            "confidence_score": 0.0,
+            "reasoning": "No policy text was provided.",
+            "is_actionable": False,
+            "classification_failed": False,
+            "error_type": "",
+            "error_message": "",
+        }
+
+    try:
+        client = llm or _get_llm()
+        prompt = render_event_classifier_prompt(
+            policy_text,
+            source_type=source_type,
+            publisher=publisher,
+        )
+        if hasattr(client, "invoke"):
+            raw_response = client.invoke(prompt)
+        elif callable(client):
+            raw_response = client(prompt)
+        else:
+            raise TypeError("Policy event classifier client must be callable or implement invoke().")
+        return _normalize_event_classification_response(
+            _extract_json_object(raw_response),
+            source_type=source_type,
+        )
+    except Exception as exc:
+        logger.exception("Policy event classification failed")
+        return {
+            "event_type": "OTHER",
+            "confidence_score": 0.0,
+            "reasoning": f"Policy event classification failed: {type(exc).__name__}.",
+            "is_actionable": False,
+            "classification_failed": True,
+            "error_type": type(exc).__name__,
+            "error_message": str(exc),
+        }
 
 
 def _normalize_policy_response(raw_response: dict) -> dict:
@@ -287,6 +416,11 @@ def analyze_policy(policy_text: str, llm: Any | None = None) -> dict:
         }
 
     try:
+        logger.info(
+            "Analyzing policy text length=%s preview=%s",
+            len(policy_text),
+            policy_text[:500],
+        )
         client = llm or _get_llm()
         prompt = render_single_call_prompt(policy_text)
         if hasattr(client, "invoke"):
@@ -296,7 +430,8 @@ def analyze_policy(policy_text: str, llm: Any | None = None) -> dict:
         else:
             raise TypeError("Policy analysis client must be callable or implement invoke().")
         return _normalize_policy_response(_extract_json_object(raw_response))
-    except Exception:
+    except Exception as exc:
+        logger.exception("Policy analysis failed")
         return {
             "summary": "",
             "ministry": "",
@@ -306,8 +441,11 @@ def analyze_policy(policy_text: str, llm: Any | None = None) -> dict:
             "sectors": [],
             "confidence": "LOW",
             "confidence_score": 0.0,
-            "reasoning": "Policy analysis was unavailable because the model response could not be validated.",
+            "reasoning": "Policy analysis failed.",
             "sector_details": [],
+            "analysis_failed": True,
+            "error_type": type(exc).__name__,
+            "error_message": str(exc),
         }
 
 

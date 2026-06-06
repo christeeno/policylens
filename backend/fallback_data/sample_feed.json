@@ -5,7 +5,15 @@
     "summary": "RBI Monetary Policy Committee raises repo rate by 50 basis points to 5.40 percent, effective immediately. The decision aims to contain inflation which has remained above the 6 percent upper tolerance band.",
     "date": "2022-08-05T10:00:00Z",
     "link": "https://rbi.org.in/fallback-1",
-    "source": "RBI"
+    "source": "RBI",
+    "source_type": "OFFICIAL",
+    "publisher": "Reserve Bank of India",
+    "article_class": "OFFICIAL_POLICY",
+    "classification_confidence": 0.99,
+    "classification_reasoning": "Official RBI announcement describing a completed repo-rate action.",
+    "raw_text_preview": "RBI Monetary Policy Committee raises repo rate by 50 basis points to 5.40 percent, effective immediately. The decision aims to contain inflation which has remained above the 6 percent upper tolerance band.",
+    "full_text": "",
+    "is_actionable": true
   },
   {
     "id": "fallback-2",
@@ -13,7 +21,15 @@
     "summary": "Cabinet approves Production Linked Incentive scheme for Automobile and Auto Components with outlay of Rs 25,938 crore. Scheme covers Advanced Automotive Technology products including Battery Electric Vehicles.",
     "date": "2021-09-15T10:00:00Z",
     "link": "https://pib.gov.in/fallback-2",
-    "source": "PIB"
+    "source": "PIB",
+    "source_type": "OFFICIAL",
+    "publisher": "Press Information Bureau",
+    "article_class": "OFFICIAL_POLICY",
+    "classification_confidence": 0.98,
+    "classification_reasoning": "Official PIB/Cabinet release describing an approved subsidy-style scheme.",
+    "raw_text_preview": "Cabinet approves Production Linked Incentive scheme for Automobile and Auto Components with outlay of Rs 25,938 crore. Scheme covers Advanced Automotive Technology products including Battery Electric Vehicles.",
+    "full_text": "",
+    "is_actionable": true
   },
   {
     "id": "fallback-3",
@@ -21,6 +37,14 @@
     "summary": "SEBI revises framework for margin obligations by trading members and clearing members. Peak margin requirement to be collected from clients upfront. New rules require collection of peak margins on intraday positions.",
     "date": "2020-07-20T10:00:00Z",
     "link": "https://www.sebi.gov.in/fallback-3",
-    "source": "SEBI"
+    "source": "SEBI",
+    "source_type": "OFFICIAL",
+    "publisher": "Securities and Exchange Board of India",
+    "article_class": "OFFICIAL_POLICY",
+    "classification_confidence": 0.98,
+    "classification_reasoning": "Official SEBI framework revision describing a completed regulatory action.",
+    "raw_text_preview": "SEBI revises framework for margin obligations by trading members and clearing members. Peak margin requirement to be collected from clients upfront. New rules require collection of peak margins on intraday positions.",
+    "full_text": "",
+    "is_actionable": true
   }
 ]

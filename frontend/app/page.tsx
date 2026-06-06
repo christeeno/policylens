@@ -1,19 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import PolicyFeed from "@/components/PolicyFeed";
+import PolicyFeed, { type PolicyItem } from "@/components/PolicyFeed";
 import ValidationTab from "@/components/ValidationTab";
 import ImpactReport from "@/components/ImpactReport";
 
 const API_BASE = "http://localhost:8000";
 
+type AnalysisReport = React.ComponentProps<typeof ImpactReport>["report"];
+
 export default function Home() {
   const [tab, setTab] = useState<"feed" | "validation">("feed");
-  const [policies, setPolicies] = useState<any[]>([]);
+  const [policies, setPolicies] = useState<PolicyItem[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | undefined>();
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<AnalysisReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
 
   useEffect(() => {
@@ -29,12 +31,28 @@ export default function Home() {
       });
   }, []);
 
-  const handleSelectPolicy = async (policy: any) => {
+  const handleSelectPolicy = async (policy: PolicyItem) => {
     setSelectedPolicyId(policy.id);
-    analyzeText(policy.summary || policy.title, policy.link);
+    analyzeText(
+      policy.full_text || policy.raw_text_preview || policy.summary || policy.title,
+      policy.link,
+      policy.source_type || "",
+      policy.publisher || "",
+      policy.article_class || "",
+      policy.classification_confidence ?? null,
+      policy.classification_reasoning || "",
+    );
   };
 
-  const analyzeText = async (text: string, source_url: string = "manual_input") => {
+  const analyzeText = async (
+    text: string,
+    source_url: string = "manual_input",
+    source_type: string = "",
+    publisher: string = "",
+    article_class: string = "",
+    classification_confidence: number | null = null,
+    classification_reasoning: string = "",
+  ) => {
     setLoadingReport(true);
     setReport(null);
     setTab("feed");
@@ -43,7 +61,15 @@ export default function Home() {
       const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ policy_text: text, source_url })
+        body: JSON.stringify({
+          policy_text: text,
+          source_url,
+          source_type,
+          publisher,
+          article_class,
+          classification_confidence,
+          classification_reasoning,
+        })
       });
       const data = await res.json();
       setReport(data);

@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 import fetcher
 import agent
 from exposure_engine import get_exposure_score, load_json as load_backend_json, refresh_exposure_scores
+from stocks_service import StockDataError, StockDataUnavailableError, StockNotFoundError, fetch_stock_history
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = FastAPI(title="PolicyLens AI")
 
@@ -28,6 +29,11 @@ last_feed_cache = []
 class AnalyzeRequest(BaseModel):
     policy_text: str
     source_url: str = "manual_input"
+    source_type: str = ""
+    publisher: str = ""
+    article_class: str = ""
+    classification_confidence: float | None = None
+    classification_reasoning: str = ""
 
 
 class ExposureRefreshRequest(BaseModel):
@@ -37,6 +43,32 @@ class ExposureRefreshRequest(BaseModel):
 @app.get("/health")
 def health_check():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+
+@app.get("/api/stocks/{ticker}/history")
+def get_stock_history(
+    ticker: str,
+    period: str = "6mo",
+    interval: str = "1d",
+    start: str | None = None,
+    end: str | None = None,
+):
+    try:
+        return fetch_stock_history(
+            ticker=ticker,
+            period=period,
+            interval=interval,
+            start=start,
+            end=end,
+        )
+    except StockNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except StockDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except StockDataError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Unexpected stock data error: {exc}")
 
 @app.get("/feed")
 def get_feed():
@@ -55,7 +87,15 @@ def get_feed():
 
 @app.post("/analyze")
 def analyze_policy(request: AnalyzeRequest):
-    result = agent.run_pipeline(request.policy_text, request.source_url)
+    result = agent.run_pipeline(
+        request.policy_text,
+        request.source_url,
+        source_type=request.source_type,
+        publisher=request.publisher,
+        article_class=request.article_class,
+        classification_confidence=request.classification_confidence,
+        classification_reasoning=request.classification_reasoning,
+    )
     if result.get("error"):
         raise HTTPException(status_code=500, detail=result.get("message"))
     

@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import agent
 import scorer
 
 
@@ -17,6 +18,18 @@ class FakeLLM:
     def invoke(self, _prompt):
         self.calls += 1
         return self.response
+
+
+class SequencedFakeLLM:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    def invoke(self, _prompt):
+        self.calls += 1
+        if not self.responses:
+            raise AssertionError("No more fake responses configured.")
+        return self.responses.pop(0)
 
 
 class PolicyAnalysisTests(unittest.TestCase):
@@ -160,6 +173,152 @@ class PolicyAnalysisTests(unittest.TestCase):
         )
 
         self.assertEqual(result["sectors"], ["banking"])
+
+    def test_classify_policy_event_marks_preview_as_non_actionable(self):
+        result = scorer.classify_policy_event(
+            "Reserve Bank of India to announce its bi-monthly Monetary Policy today.",
+            llm=FakeLLM(
+                {
+                    "event_type": "PREVIEW",
+                    "confidence_score": 0.97,
+                    "reasoning": "The text describes an upcoming announcement rather than a completed policy action.",
+                }
+            ),
+        )
+
+        self.assertEqual(result["event_type"], "PREVIEW")
+        self.assertFalse(result["is_actionable"])
+        self.assertGreater(result["confidence_score"], 0.9)
+
+    def test_classify_policy_event_marks_news_report_as_actionable(self):
+        result = scorer.classify_policy_event(
+            "Reuters: RBI raises repo rate by 50 basis points.",
+            llm=FakeLLM(
+                {
+                    "event_type": "NEWS_REPORT",
+                    "confidence_score": 0.94,
+                    "reasoning": "A news outlet is reporting a completed policy action.",
+                }
+            ),
+            source_type="NEWS",
+            publisher="Reuters",
+        )
+
+        self.assertEqual(result["event_type"], "NEWS_REPORT")
+        self.assertTrue(result["is_actionable"])
+
+    def test_classify_policy_event_marks_official_policy_as_actionable(self):
+        result = scorer.classify_policy_event(
+            "RBI raises repo rate by 50 basis points.",
+            llm=FakeLLM(
+                {
+                    "event_type": "OFFICIAL_POLICY",
+                    "confidence_score": 0.98,
+                    "reasoning": "An official issuer is announcing a completed policy action.",
+                }
+            ),
+            source_type="OFFICIAL",
+            publisher="Reserve Bank of India",
+        )
+
+        self.assertEqual(result["event_type"], "OFFICIAL_POLICY")
+        self.assertTrue(result["is_actionable"])
+
+    def test_run_pipeline_skips_stock_analysis_for_non_actionable_event(self):
+        fake_llm = SequencedFakeLLM(
+            [
+                {
+                    "event_type": "COMMENTARY",
+                    "confidence_score": 0.91,
+                    "reasoning": "The text is an investor explainer and does not report a concrete policy action.",
+                }
+            ]
+        )
+
+        result = agent.run_pipeline(
+            "What investors should watch after the RBI policy meeting.",
+            source_url="manual_input",
+            llm=fake_llm,
+        )
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertEqual(result["analysis_status"], "NO_ACTIONABLE_EVENT")
+        self.assertEqual(result["event_type"], "COMMENTARY")
+        self.assertEqual(result["stocks"], [])
+        self.assertEqual(result["key_change"], "No actionable policy event detected.")
+
+    @patch("scorer.score_all_stocks")
+    @patch("scorer.analyze_policy")
+    def test_run_pipeline_uses_feed_article_class_to_skip_stock_analysis(
+        self,
+        mock_analyze_policy,
+        mock_score_all_stocks,
+    ):
+        fake_llm = SequencedFakeLLM([])
+
+        result = agent.run_pipeline(
+            "Why RBI chose dollars over rate hikes?",
+            source_url="manual_input",
+            source_type="NEWS",
+            publisher="Moneycontrol.com",
+            llm=fake_llm,
+            article_class="COMMENTARY",
+            classification_confidence=0.88,
+            classification_reasoning="The text reads like commentary rather than a concrete policy decision.",
+        )
+
+        self.assertEqual(fake_llm.calls, 0)
+        mock_analyze_policy.assert_not_called()
+        mock_score_all_stocks.assert_not_called()
+        self.assertEqual(result["analysis_status"], "NO_ACTIONABLE_EVENT")
+        self.assertEqual(result["event_type"], "COMMENTARY")
+        self.assertEqual(result["policy_type"], "NON_ACTIONABLE")
+        self.assertEqual(result["stocks"], [])
+
+    @patch("scorer.score_all_stocks", return_value=[{"ticker": "SBIN"}])
+    def test_run_pipeline_analyzes_actionable_official_policy(self, _mock_score_all_stocks):
+        fake_llm = SequencedFakeLLM(
+            [
+                {
+                    "event_type": "OFFICIAL_POLICY",
+                    "confidence_score": 0.98,
+                    "reasoning": "This is an official completed policy action.",
+                },
+                {
+                    "summary": "RBI raised the repo rate.",
+                    "ministry": "Reserve Bank of India",
+                    "key_change": "Repo rate increased by 50 basis points.",
+                    "policy_type": "RATE_CHANGE",
+                    "analyst_brief": "The policy is actionable. Banks and rate-sensitive sectors should react first. Investors should watch credit transmission.",
+                    "overall_confidence_score": 0.9,
+                    "overall_reasoning": "Completed RBI action with clear transmission.",
+                    "sector_impacts": [
+                        {
+                            "sector": "banking",
+                            "confidence_score": 0.92,
+                            "impact_direction": "NEGATIVE",
+                            "impact_strength": "HIGH",
+                            "impact_strength_score": 0.91,
+                            "reasoning": "Higher rates tighten conditions.",
+                            "evidence": "repo rate increased",
+                            "is_supported_sector": True,
+                        }
+                    ],
+                },
+            ]
+        )
+
+        result = agent.run_pipeline(
+            "RBI raises repo rate by 50 basis points.",
+            source_url="manual_input",
+            llm=fake_llm,
+            source_type="OFFICIAL",
+            publisher="Reserve Bank of India",
+        )
+
+        self.assertEqual(result["analysis_status"], "SUCCESS")
+        self.assertEqual(result["event_type"], "OFFICIAL_POLICY")
+        self.assertEqual(result["stocks"], [{"ticker": "SBIN"}])
 
     @patch("scorer.resolve_exposure")
     @patch("scorer._build_stock_tasks")

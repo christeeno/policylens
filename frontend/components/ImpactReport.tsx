@@ -3,7 +3,40 @@
 import React from "react";
 import StockCard from "./StockCard";
 
-export default function ImpactReport({ report, onManualAnalyze, analyzeLoading }: { report: any, onManualAnalyze: (text: string) => void, analyzeLoading: boolean }) {
+const ACTIONABLE_EVENT_TYPES = new Set(["OFFICIAL_POLICY", "NEWS_REPORT"]);
+
+interface StockImpact {
+  ticker: string;
+  name: string;
+  sector: string;
+  direction: string;
+  score: number;
+  label: string;
+  horizon: string;
+  reason: string;
+}
+
+interface ImpactReportData {
+  publisher?: string;
+  ministry?: string;
+  event_type?: string;
+  article_class?: string;
+  policy_type?: string;
+  report_id?: string;
+  key_change?: string;
+  policy_summary?: string;
+  sectors?: string[];
+  confidence?: string;
+  analysis_failed?: boolean;
+  analysis_status?: string;
+  stocks?: StockImpact[];
+  analyst_brief?: string;
+  event_reasoning?: string;
+  classification_reasoning?: string;
+  processing_time_ms?: number;
+}
+
+export default function ImpactReport({ report, onManualAnalyze, analyzeLoading }: { report: ImpactReportData | null, onManualAnalyze: (text: string) => void, analyzeLoading: boolean }) {
   const [manualText, setManualText] = React.useState("");
 
   if (analyzeLoading) {
@@ -45,23 +78,51 @@ export default function ImpactReport({ report, onManualAnalyze, analyzeLoading }
     );
   }
 
+  if (!report) {
+    return null;
+  }
+
   const confidenceColor = 
     report.confidence === "HIGH" ? "text-[#00d97e] border-[#00d97e]/30 bg-[#00d97e]/10" :
     report.confidence === "MEDIUM" ? "text-[#ffb020] border-[#ffb020]/30 bg-[#ffb020]/10" :
     "text-[#ff4560] border-[#ff4560]/30 bg-[#ff4560]/10";
+  const displayEventType = String(report.event_type || report.article_class || "OTHER").toUpperCase();
+  const policyType = String(report.policy_type || "").toUpperCase();
+  const sectors = Array.isArray(report.sectors) ? report.sectors : [];
+  const stocks = Array.isArray(report.stocks) ? report.stocks : [];
+  const hasSectors = sectors.length > 0;
+  const hasStocks = stocks.length > 0;
+  const analysisFailed = Boolean(report.analysis_failed);
+  const legacyNonActionableOther =
+    !analysisFailed &&
+    !ACTIONABLE_EVENT_TYPES.has(displayEventType) &&
+    !hasSectors &&
+    !hasStocks &&
+    (!policyType || policyType === "OTHER" || policyType === "NON_ACTIONABLE");
+  const noActionableEvent = report.analysis_status === "NO_ACTIONABLE_EVENT" || legacyNonActionableOther;
+  const analystBrief = analysisFailed
+    ? "Analysis unavailable because the backend policy analyzer failed."
+    : noActionableEvent
+    ? report.event_reasoning || report.classification_reasoning || "No actionable policy event detected."
+    : report.analyst_brief || "No analyst brief was generated for this policy.";
 
   return (
     <div className="h-full overflow-y-auto p-6 flex flex-col gap-6">
       
       {/* Header Info */}
-      <div className="bg-[#12121a] border border-[#1e1e2e] p-5 rounded-xl">
+        <div className="bg-[#12121a] border border-[#1e1e2e] p-5 rounded-xl">
         <div className="flex items-center gap-3 mb-3">
           <span className="bg-[#e8e8f0] text-[#0a0a0f] text-xs font-bold px-2 py-1 rounded">
-            {report.ministry}
+            {report.publisher || report.ministry || "PolicyLens"}
           </span>
           <span className="border border-[#3b82f6] text-[#3b82f6] text-xs font-semibold px-2 py-1 rounded">
-            {report.policy_type}
+            {displayEventType}
           </span>
+          {report.policy_type && !noActionableEvent && report.policy_type !== "NON_ACTIONABLE" ? (
+            <span className="border border-[#00d97e]/30 text-[#00d97e] text-xs font-semibold px-2 py-1 rounded">
+              {report.policy_type}
+            </span>
+          ) : null}
           <div className="flex-1"></div>
           <span className="text-xs text-[#6b6b8a] font-mono">ID: {report.report_id?.substring(0,8)}</span>
         </div>
@@ -74,11 +135,15 @@ export default function ImpactReport({ report, onManualAnalyze, analyzeLoading }
         <div className="flex-1 bg-[#12121a] border border-[#1e1e2e] p-4 rounded-xl flex items-center gap-3">
           <span className="text-sm text-[#6b6b8a] w-24">Affected Sectors:</span>
           <div className="flex gap-2 flex-wrap">
-            {report.sectors && report.sectors.length > 0 ? report.sectors.map((s: string) => (
+            {hasSectors ? sectors.map((s: string) => (
               <span key={s} className="bg-[#1e1e2e] text-[#e8e8f0] text-xs px-2.5 py-1 rounded-full capitalize">
                 {s.replace("_", " ")}
               </span>
-            )) : <span className="text-sm text-[#a0a0b8]">None detected</span>}
+            )) : (
+              <span className="text-sm text-[#a0a0b8]">
+                {analysisFailed ? "Analysis unavailable" : noActionableEvent ? "No actionable policy event detected" : "No material impact detected"}
+              </span>
+            )}
           </div>
         </div>
         
@@ -93,15 +158,19 @@ export default function ImpactReport({ report, onManualAnalyze, analyzeLoading }
       {/* Stock Watchlist */}
       <div>
         <h3 className="text-[#e8e8f0] text-sm font-semibold mb-3 tracking-wide uppercase">Top Impacted Stocks</h3>
-        {report.stocks && report.stocks.length > 0 ? (
+        {hasStocks ? (
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {report.stocks.map((stock: any) => (
+            {stocks.map((stock: StockImpact) => (
               <StockCard key={stock.ticker} stock={stock} />
             ))}
           </div>
         ) : (
           <div className="bg-[#12121a] border border-[#1e1e2e] p-6 rounded-xl text-center text-[#6b6b8a] text-sm">
-            No specific stock impacts identified in universe.
+            {analysisFailed
+              ? "The policy analyzer encountered an internal error. Please retry or inspect backend logs."
+              : noActionableEvent
+              ? "No actionable policy event detected. This item appears to be commentary, a preview, a market reaction, or otherwise not a concrete policy decision."
+              : "No specific stock impacts identified in universe."}
           </div>
         )}
       </div>
@@ -110,7 +179,7 @@ export default function ImpactReport({ report, onManualAnalyze, analyzeLoading }
       <div className="mt-4">
         <h3 className="text-[#e8e8f0] text-sm font-semibold mb-3 tracking-wide uppercase">Analyst Brief</h3>
         <blockquote className="border-l-4 border-[#3b82f6] pl-4 py-1 text-[#e8e8f0] text-sm leading-relaxed italic bg-[#3b82f6]/5 p-3 rounded-r-lg">
-          {report.analyst_brief}
+          {analystBrief}
         </blockquote>
       </div>
 
