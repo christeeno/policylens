@@ -243,23 +243,40 @@ def run_pipeline(
             classification_confidence=classification_confidence,
             classification_reasoning=classification_reasoning,
         )
-        if feed_classification and not feed_classification.get("is_actionable"):
-            end_time = time.time()
-            return _build_no_actionable_event_report(
-                policy_text=policy_text,
-                source_url=source_url,
-                event_classification=feed_classification,
-                processing_time_ms=int((end_time - start_time) * 1000),
+        if feed_classification:
+            if (
+                feed_classification.get("is_actionable")
+                and scorer._is_non_policy_personnel_update(policy_text)
+            ):
+                feed_classification = {
+                    "event_type": "OTHER",
+                    "confidence_score": 0.95,
+                    "reasoning": "Official personnel update, not a market-impact policy measure.",
+                    "is_actionable": False,
+                    "classification_failed": False,
+                    "error_type": "",
+                    "error_message": "",
+                    "source": "personnel_override",
+                }
+
+            if not feed_classification.get("is_actionable"):
+                end_time = time.time()
+                return _build_no_actionable_event_report(
+                    policy_text=policy_text,
+                    source_url=source_url,
+                    event_classification=feed_classification,
+                    processing_time_ms=int((end_time - start_time) * 1000),
+                    source_type=source_type,
+                    publisher=publisher,
+                )
+            event_classification = feed_classification
+        else:
+            event_classification = scorer.classify_policy_event(
+                policy_text,
+                llm=llm,
                 source_type=source_type,
                 publisher=publisher,
             )
-
-        event_classification = scorer.classify_policy_event(
-            policy_text,
-            llm=llm,
-            source_type=source_type,
-            publisher=publisher,
-        )
         if event_classification.get("classification_failed"):
             end_time = time.time()
             return _build_failed_classification_report(

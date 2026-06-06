@@ -36,6 +36,16 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(result["article_class"], "OFFICIAL_POLICY")
         self.assertTrue(result["is_actionable"])
 
+    def test_infer_article_class_marks_personnel_update_other(self):
+        result = fetcher.infer_article_class(
+            "Shri Swaminathan Janakiraman re-appointed as RBI Deputy Governor.",
+            source_type="OFFICIAL",
+            publisher="Reserve Bank of India",
+        )
+
+        self.assertEqual(result["article_class"], "OTHER")
+        self.assertFalse(result["is_actionable"])
+
     def test_infer_article_class_marks_market_reaction(self):
         result = fetcher.infer_article_class(
             "Sensex rallies after RBI policy decision lifts banking stocks.",

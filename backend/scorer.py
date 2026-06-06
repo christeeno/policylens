@@ -46,6 +46,36 @@ SUPPORTED_SECTOR_HINTS = {
 SUPPORTED_SECTORS = sorted(SUPPORTED_SECTOR_HINTS.keys())
 EVENT_TYPES = {"OFFICIAL_POLICY", "NEWS_REPORT", "COMMENTARY", "PREVIEW", "MARKET_REACTION", "OTHER"}
 ACTIONABLE_EVENT_TYPES = {"OFFICIAL_POLICY", "NEWS_REPORT"}
+PERSONNEL_ACTION_MARKERS = (
+    "appoints",
+    "appointed",
+    "appointment",
+    "reappoints",
+    "re-appointed",
+    "reappointment",
+    "re-appointment",
+    "reappointed",
+    "tenure extended",
+    "extension of tenure",
+    "resigns",
+    "resigned",
+    "resignation",
+    "retires",
+    "retired",
+    "retirement",
+)
+PERSONNEL_ROLE_MARKERS = (
+    "deputy governor",
+    "governor",
+    "chairperson",
+    "chairman",
+    "whole-time member",
+    "whole time member",
+    "executive director",
+    "managing director",
+    "chief executive officer",
+    "director",
+)
 
 
 class SectorImpact(BaseModel):
@@ -115,6 +145,14 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
     except (TypeError, ValueError):
         return default
     return max(0.0, min(1.0, score))
+
+
+def _is_non_policy_personnel_update(text: str) -> bool:
+    normalized = re.sub(r"\s+", " ", (text or "").lower()).strip()
+    return (
+        any(marker in normalized for marker in PERSONNEL_ACTION_MARKERS)
+        and any(marker in normalized for marker in PERSONNEL_ROLE_MARKERS)
+    )
 
 
 def _extract_json_object(raw_response: Any) -> dict:
@@ -216,7 +254,8 @@ Rules:
 4. Headlines about an upcoming meeting or announcement are PREVIEW.
 5. Opinion pieces or investor explainers are COMMENTARY.
 6. Market move coverage is MARKET_REACTION even if it references a policy.
-7. Respond with JSON only.
+7. Personnel appointments, reappointments, tenure extensions, resignations, or role changes are OTHER unless they also announce a substantive policy measure.
+8. Respond with JSON only.
 
 Examples:
 - "RBI raises repo rate by 50 basis points" from RBI -> OFFICIAL_POLICY
@@ -291,6 +330,16 @@ def classify_policy_event(
             "event_type": "OTHER",
             "confidence_score": 0.0,
             "reasoning": "No policy text was provided.",
+            "is_actionable": False,
+            "classification_failed": False,
+            "error_type": "",
+            "error_message": "",
+        }
+    if _is_non_policy_personnel_update(policy_text):
+        return {
+            "event_type": "OTHER",
+            "confidence_score": 0.95,
+            "reasoning": "Official personnel update, not a market-impact policy measure.",
             "is_actionable": False,
             "classification_failed": False,
             "error_type": "",

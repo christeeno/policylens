@@ -224,6 +224,20 @@ class PolicyAnalysisTests(unittest.TestCase):
         self.assertEqual(result["event_type"], "OFFICIAL_POLICY")
         self.assertTrue(result["is_actionable"])
 
+    def test_classify_policy_event_skips_personnel_update_without_llm(self):
+        fake_llm = SequencedFakeLLM([])
+
+        result = scorer.classify_policy_event(
+            "Shri Swaminathan Janakiraman re-appointed as RBI Deputy Governor.",
+            llm=fake_llm,
+            source_type="OFFICIAL",
+            publisher="Reserve Bank of India",
+        )
+
+        self.assertEqual(fake_llm.calls, 0)
+        self.assertEqual(result["event_type"], "OTHER")
+        self.assertFalse(result["is_actionable"])
+
     def test_run_pipeline_skips_stock_analysis_for_non_actionable_event(self):
         fake_llm = SequencedFakeLLM(
             [
@@ -273,6 +287,84 @@ class PolicyAnalysisTests(unittest.TestCase):
         self.assertEqual(result["analysis_status"], "NO_ACTIONABLE_EVENT")
         self.assertEqual(result["event_type"], "COMMENTARY")
         self.assertEqual(result["policy_type"], "NON_ACTIONABLE")
+        self.assertEqual(result["stocks"], [])
+
+    @patch("scorer.classify_policy_event")
+    @patch("scorer.score_all_stocks", return_value=[{"ticker": "SBIN"}])
+    @patch("scorer.analyze_policy")
+    def test_run_pipeline_reuses_actionable_feed_classification(
+        self,
+        mock_analyze_policy,
+        _mock_score_all_stocks,
+        mock_classify_policy_event,
+    ):
+        fake_llm = SequencedFakeLLM([])
+        mock_analyze_policy.return_value = {
+            "summary": "RBI will conduct a VRR auction.",
+            "ministry": "Reserve Bank of India",
+            "key_change": "VRR auction announced.",
+            "policy_type": "LIQUIDITY",
+            "analyst_brief": "The RBI is adjusting short-term liquidity. Money-market transmission should react first. Investors should monitor banking and funding-sensitive segments.",
+            "sectors": ["banking"],
+            "confidence": "MEDIUM",
+            "confidence_score": 0.66,
+            "reasoning": "Official liquidity operation by RBI.",
+            "sector_details": [
+                {
+                    "sector": "banking",
+                    "confidence_score": 0.66,
+                    "impact_direction": "POSITIVE",
+                    "impact_strength": "MEDIUM",
+                    "impact_strength_score": 0.65,
+                    "reasoning": "Liquidity operations primarily affect funding conditions.",
+                    "is_supported_sector": True,
+                }
+            ],
+        }
+
+        result = agent.run_pipeline(
+            "On a review of current and evolving liquidity conditions, it has been decided to conduct a Variable Rate Repo (VRR) auction.",
+            source_url="manual_input",
+            source_type="OFFICIAL",
+            publisher="Reserve Bank of India",
+            llm=fake_llm,
+            article_class="OFFICIAL_POLICY",
+            classification_confidence=0.97,
+            classification_reasoning="The text comes from Reserve Bank of India and describes a concrete policy action.",
+        )
+
+        self.assertEqual(fake_llm.calls, 0)
+        mock_classify_policy_event.assert_not_called()
+        mock_analyze_policy.assert_called_once()
+        self.assertEqual(result["analysis_status"], "SUCCESS")
+        self.assertEqual(result["event_type"], "OFFICIAL_POLICY")
+        self.assertEqual(result["stocks"], [{"ticker": "SBIN"}])
+
+    @patch("scorer.score_all_stocks")
+    @patch("scorer.analyze_policy")
+    def test_run_pipeline_skips_personnel_update_even_if_feed_marked_actionable(
+        self,
+        mock_analyze_policy,
+        mock_score_all_stocks,
+    ):
+        fake_llm = SequencedFakeLLM([])
+
+        result = agent.run_pipeline(
+            "Shri Swaminathan Janakiraman re-appointed as RBI Deputy Governor.",
+            source_url="manual_input",
+            source_type="OFFICIAL",
+            publisher="Reserve Bank of India",
+            llm=fake_llm,
+            article_class="OFFICIAL_POLICY",
+            classification_confidence=0.97,
+            classification_reasoning="The text comes from Reserve Bank of India and describes a concrete policy action.",
+        )
+
+        self.assertEqual(fake_llm.calls, 0)
+        mock_analyze_policy.assert_not_called()
+        mock_score_all_stocks.assert_not_called()
+        self.assertEqual(result["analysis_status"], "NO_ACTIONABLE_EVENT")
+        self.assertEqual(result["event_type"], "OTHER")
         self.assertEqual(result["stocks"], [])
 
     @patch("scorer.score_all_stocks", return_value=[{"ticker": "SBIN"}])

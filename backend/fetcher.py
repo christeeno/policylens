@@ -234,7 +234,42 @@ def infer_article_class(
         "increased",
         "decreased",
     )
+    personnel_action_markers = (
+        "appoints",
+        "appointed",
+        "appointment",
+        "reappoints",
+        "re-appointed",
+        "reappointment",
+        "re-appointment",
+        "reappointed",
+        "tenure extended",
+        "extension of tenure",
+        "resigns",
+        "resigned",
+        "resignation",
+        "retires",
+        "retired",
+        "retirement",
+    )
+    personnel_role_markers = (
+        "deputy governor",
+        "governor",
+        "chairperson",
+        "chairman",
+        "whole-time member",
+        "whole time member",
+        "executive director",
+        "managing director",
+        "chief executive officer",
+        "director",
+    )
 
+    if (
+        any(marker in normalized for marker in personnel_action_markers)
+        and any(marker in normalized for marker in personnel_role_markers)
+    ):
+        return _classification_payload("OTHER", 0.95, "The text is an official personnel update, not a market-impact policy measure.")
     if any(marker in normalized for marker in preview_markers):
         return _classification_payload("PREVIEW", 0.93, "The text describes an upcoming policy announcement rather than a completed decision.")
     if any(marker in normalized for marker in commentary_markers):
