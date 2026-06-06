@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 import fetcher
 import agent
+from exposure_engine import get_exposure_score, load_json as load_backend_json, refresh_exposure_scores
 
 load_dotenv()
 
@@ -27,6 +28,11 @@ last_feed_cache = []
 class AnalyzeRequest(BaseModel):
     policy_text: str
     source_url: str = "manual_input"
+
+
+class ExposureRefreshRequest(BaseModel):
+    fundamentals_file: str = "company_fundamentals.json"
+    output_file: str = "exposure_scores.json"
 
 @app.get("/health")
 def health_check():
@@ -56,6 +62,42 @@ def analyze_policy(request: AnalyzeRequest):
     report_id = result["report_id"]
     reports_cache[report_id] = result
     return result
+
+
+@app.post("/exposure/refresh")
+def refresh_exposure(request: ExposureRefreshRequest):
+    try:
+        return refresh_exposure_scores(
+            fundamentals_file=request.fundamentals_file,
+            output_file=request.output_file,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/exposure/{ticker}")
+def get_exposure(ticker: str):
+    score, details = get_exposure_score(ticker.upper())
+    if details is None:
+        raise HTTPException(status_code=404, detail=f"Exposure score not found for ticker {ticker.upper()}")
+
+    return {
+        "ticker": ticker.upper(),
+        "score_1_to_5": score,
+        "details": details,
+    }
+
+
+@app.get("/exposure")
+def list_exposure_scores():
+    try:
+        return load_backend_json("exposure_scores.json")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Exposure scores file has not been generated yet")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/report/{report_id}")
 def get_report(report_id: str):

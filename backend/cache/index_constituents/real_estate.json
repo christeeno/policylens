@@ -1,0 +1,129 @@
+{
+  "sector": "real_estate",
+  "display_name": "Nifty Realty",
+  "page_url": "https://niftyindices.com/indices/equity/sectoral-indices/nifty-realty",
+  "csv_url": "https://niftyindices.com/IndexConstituent/ind_niftyrealtylist.csv",
+  "fetched_at": "2026-06-06T16:49:13.127468+00:00",
+  "constituents": [
+    {
+      "ticker": "ABREL",
+      "name": "Aditya Birla Real Estate Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 1,
+      "exposure": 5,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "ANANTRAJ",
+      "name": "Anant Raj Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 2,
+      "exposure": 5,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "BRIGADE",
+      "name": "Brigade Enterprises Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 3,
+      "exposure": 4,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "DLF",
+      "name": "DLF Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 4,
+      "exposure": 4,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "GODREJPROP",
+      "name": "Godrej Properties Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 5,
+      "exposure": 3,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "LODHA",
+      "name": "Lodha Developers Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 6,
+      "exposure": 3,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "OBEROIRLTY",
+      "name": "Oberoi Realty Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 7,
+      "exposure": 2,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "PHOENIXLTD",
+      "name": "Phoenix Mills Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 8,
+      "exposure": 2,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "PRESTIGE",
+      "name": "Prestige Estates Projects Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 9,
+      "exposure": 1,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    },
+    {
+      "ticker": "SOBHA",
+      "name": "Sobha Ltd.",
+      "sector": "real_estate",
+      "source_index": "real_estate",
+      "source_index_name": "Nifty Realty",
+      "weight": null,
+      "rank": 10,
+      "exposure": 1,
+      "rate_sensitivity": 3,
+      "stock_type": "Real Estate"
+    }
+  ]
+}

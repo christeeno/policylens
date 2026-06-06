@@ -1,0 +1,135 @@
+{
+  "companies": [
+    {
+      "ticker": "PRAJIND",
+      "name": "Praj Industries",
+      "source": {
+        "fiscal_year": "FY2025",
+        "annual_report": "structured annual report extraction"
+      },
+      "segments": [
+        {
+          "name": "Bioenergy",
+          "sector": "energy_transition",
+          "revenue_share": 0.82,
+          "policy_sensitivity": 0.95,
+          "annual_report_signal": 0.92
+        },
+        {
+          "name": "Engineering",
+          "sector": "industrial_capex",
+          "revenue_share": 0.10,
+          "policy_sensitivity": 0.55,
+          "annual_report_signal": 0.52
+        },
+        {
+          "name": "HiPurity and Others",
+          "sector": "industrial_specialty",
+          "revenue_share": 0.08,
+          "policy_sensitivity": 0.35,
+          "annual_report_signal": 0.30
+        }
+      ]
+    },
+    {
+      "ticker": "SBIN",
+      "name": "State Bank of India",
+      "source": {
+        "fiscal_year": "FY2025",
+        "annual_report": "structured annual report extraction"
+      },
+      "segments": [
+        {
+          "name": "Retail Banking",
+          "sector": "banking",
+          "revenue_share": 0.45,
+          "policy_sensitivity": 0.82,
+          "annual_report_signal": 0.78
+        },
+        {
+          "name": "Corporate Banking",
+          "sector": "banking",
+          "revenue_share": 0.35,
+          "policy_sensitivity": 0.80,
+          "annual_report_signal": 0.72
+        },
+        {
+          "name": "Treasury",
+          "sector": "banking",
+          "revenue_share": 0.20,
+          "policy_sensitivity": 0.58,
+          "annual_report_signal": 0.60
+        }
+      ]
+    },
+    {
+      "ticker": "TATAMOTORS",
+      "name": "Tata Motors",
+      "source": {
+        "fiscal_year": "FY2025",
+        "annual_report": "structured annual report extraction"
+      },
+      "segments": [
+        {
+          "name": "Jaguar Land Rover",
+          "sector": "auto",
+          "revenue_share": 0.72,
+          "policy_sensitivity": 0.45,
+          "annual_report_signal": 0.40
+        },
+        {
+          "name": "Commercial Vehicles",
+          "sector": "auto",
+          "revenue_share": 0.16,
+          "policy_sensitivity": 0.78,
+          "annual_report_signal": 0.70
+        },
+        {
+          "name": "Passenger Vehicles and EV",
+          "sector": "auto",
+          "revenue_share": 0.12,
+          "policy_sensitivity": 0.90,
+          "annual_report_signal": 0.86
+        }
+      ]
+    },
+    {
+      "ticker": "RELIANCE",
+      "name": "Reliance Industries",
+      "source": {
+        "fiscal_year": "FY2025",
+        "annual_report": "structured annual report extraction"
+      },
+      "segments": [
+        {
+          "name": "Oil to Chemicals",
+          "sector": "energy",
+          "revenue_share": 0.37,
+          "policy_sensitivity": 0.80,
+          "annual_report_signal": 0.65
+        },
+        {
+          "name": "Retail",
+          "sector": "consumer",
+          "revenue_share": 0.33,
+          "policy_sensitivity": 0.35,
+          "annual_report_signal": 0.25
+        },
+        {
+          "name": "Digital Services",
+          "sector": "digital",
+          "revenue_share": 0.20,
+          "policy_sensitivity": 0.30,
+          "annual_report_signal": 0.30
+        },
+        {
+          "name": "Oil and Gas",
+          "sector": "energy",
+          "revenue_share": 0.10,
+          "policy_sensitivity": 0.85,
+          "annual_report_signal": 0.70
+        }
+      ]
+    }
+  ]
+}

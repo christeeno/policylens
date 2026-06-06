@@ -1,0 +1,79 @@
+{
+  "broad_market": {
+    "display_name": "Nifty 50",
+    "page_url": "https://niftyindices.com/indices/equity/broad-based-indices/nifty--50",
+    "rate_sensitivity": 2,
+    "default_type": "Large Cap",
+    "aliases": ["broad_market", "market", "nifty_50", "nifty50"]
+  },
+  "banking": {
+    "display_name": "Nifty Bank",
+    "page_url": "https://niftyindices.com/indices/equity/sectoral-indices/nifty-bank",
+    "rate_sensitivity": 3,
+    "default_type": "Bank",
+    "aliases": ["banking", "bank", "nifty_bank"]
+  },
+  "pharma": {
+    "display_name": "Nifty Pharma",
+    "page_url": "https://niftyindices.com/indices/equity/sectoral-indices/nifty-pharma",
+    "rate_sensitivity": 1,
+    "default_type": "Pharma",
+    "aliases": ["pharma", "healthcare", "nifty_pharma"]
+  },
+  "it": {
+    "display_name": "Nifty IT",
+    "page_url": "https://niftyindices.com/indices/equity/sectoral-indices/nifty-it",
+    "rate_sensitivity": 1,
+    "default_type": "IT Services",
+    "aliases": ["it", "technology", "tech", "nifty_it"]
+  },
+  "auto": {
+    "display_name": "Nifty Auto",
+    "page_url": "https://niftyindices.com/indices/equity/sectoral-indices/nifty-auto",
+    "rate_sensitivity": 2,
+    "default_type": "Auto",
+    "aliases": ["auto", "automobile", "nifty_auto"]
+  },
+  "infrastructure": {
+    "display_name": "Nifty Infrastructure",
+    "page_url": "https://niftyindices.com/indices/equity/thematic-indices/nifty-infrastructure",
+    "rate_sensitivity": 2,
+    "default_type": "Infrastructure",
+    "aliases": ["infrastructure", "infra", "nifty_infrastructure"]
+  },
+  "energy": {
+    "display_name": "Nifty Energy",
+    "page_url": "https://niftyindices.com/indices/equity/thematic-indices/nifty-energy",
+    "rate_sensitivity": 2,
+    "default_type": "Energy",
+    "aliases": ["energy", "oil_and_gas", "power", "nifty_energy"]
+  },
+  "psu": {
+    "display_name": "Nifty PSE",
+    "page_url": "https://niftyindices.com/indices/equity/thematic-indices/nifty-pse",
+    "rate_sensitivity": 2,
+    "default_type": "PSU",
+    "aliases": ["psu", "pse", "nifty_psu", "nifty_pse"]
+  },
+  "defence": {
+    "display_name": "Nifty India Defence",
+    "page_url": "https://niftyindices.com/indices/equity/thematic-indices/nifty--india--defence",
+    "rate_sensitivity": 2,
+    "default_type": "Defence",
+    "aliases": ["defence", "defense", "aerospace", "nifty_defence", "nifty_india_defence"]
+  },
+  "fmcg": {
+    "display_name": "Nifty FMCG",
+    "page_url": "https://niftyindices.com/indices/equity/sectoral-indices/nifty-fmcg",
+    "rate_sensitivity": 1,
+    "default_type": "FMCG",
+    "aliases": ["fmcg", "consumer", "consumer_staples", "nifty_fmcg"]
+  },
+  "real_estate": {
+    "display_name": "Nifty Realty",
+    "page_url": "https://niftyindices.com/indices/equity/sectoral-indices/nifty-realty",
+    "rate_sensitivity": 3,
+    "default_type": "Real Estate",
+    "aliases": ["real_estate", "realty", "housing", "nifty_realty"]
+  }
+}

@@ -1,0 +1,161 @@
+# Exposure Engine Design
+
+## What changes
+
+The existing stock scoring engine reads `exposure` as a manually assigned integer from `stock_universe.json`. The new design computes exposure from structured company fundamentals and stores the refreshed result in `exposure_scores.json`, while leaving the current scoring formula unchanged:
+
+```text
+policy_impact_score = directness * exposure * (1 + 0.5 * urgency)
+```
+
+Only the `exposure` input becomes data-driven.
+
+## Normalized exposure formula
+
+Each company is represented as revenue segments extracted from annual reports.
+
+For each segment:
+
+- `revenue_share`: segment revenue / company revenue
+- `policy_sensitivity`: 0 to 1 estimate of how regulation-sensitive the segment is
+- `annual_report_signal`: 0 to 1 estimate derived from annual report language, risk factors, management commentary, and regulatory dependence
+- `sector`: canonical sector bucket used for concentration
+
+Component formulas:
+
+```text
+revenue_factor = sum(revenue_share * policy_sensitivity)
+business_mix_factor = sum(revenue_share^2)
+annual_report_factor = sum(revenue_share * annual_report_signal)
+sector_concentration_factor = max(sum(revenue_share) by sector)
+```
+
+Final raw exposure:
+
+```text
+raw_exposure =
+    0.40 * revenue_factor +
+    0.20 * business_mix_factor +
+    0.25 * annual_report_factor +
+    0.15 * sector_concentration_factor
+```
+
+Normalization to 1 to 5:
+
+```text
+1 if raw_exposure < 0.20
+2 if raw_exposure < 0.40
+3 if raw_exposure < 0.60
+4 if raw_exposure < 0.80
+5 otherwise
+```
+
+## Why these four components exist
+
+- `segment revenue` makes the score sensitive to where the company actually earns money.
+- `business mix` increases exposure for concentrated companies and lowers it for diversified conglomerates.
+- `annual reports` inject management-disclosed policy dependence into the score.
+- `sector concentration` prevents diversified firms from looking as exposed as pure-play businesses.
+
+## Refresh flow
+
+1. Ingest structured annual-report fundamentals into `company_fundamentals.json` or a future database table.
+2. Run `python backend/exposure_refresh.py`.
+3. The refresh computes exposure for each company and writes `backend/exposure_scores.json`.
+4. `backend/scorer.py` now reads the refreshed value automatically for modeled stocks.
+5. Stocks without fundamentals still fall back to the legacy manual `exposure` field.
+
+Recommended cadence:
+
+- Quarterly after results and segment disclosures
+- Immediately after new annual reports
+- Ad hoc when business mix changes materially due to merger, demerger, or new segment reporting
+
+## Example calculations
+
+These examples are illustrative and assume structured FY2025 segment mixes extracted from annual reports.
+
+### Praj Industries
+
+Segments:
+
+- Bioenergy: share `0.82`, sensitivity `0.95`, report signal `0.92`
+- Engineering: share `0.10`, sensitivity `0.55`, report signal `0.52`
+- HiPurity and Others: share `0.08`, sensitivity `0.35`, report signal `0.30`
+
+Calculation:
+
+```text
+revenue_factor = 0.82*0.95 + 0.10*0.55 + 0.08*0.35 = 0.8620
+business_mix_factor = 0.82^2 + 0.10^2 + 0.08^2 = 0.6888
+annual_report_factor = 0.82*0.92 + 0.10*0.52 + 0.08*0.30 = 0.8304
+sector_concentration_factor = 0.82
+raw_exposure = 0.40*0.8620 + 0.20*0.6888 + 0.25*0.8304 + 0.15*0.82 = 0.8133
+score = 5
+```
+
+### SBI
+
+Segments:
+
+- Retail Banking: share `0.45`, sensitivity `0.82`, report signal `0.78`
+- Corporate Banking: share `0.35`, sensitivity `0.80`, report signal `0.72`
+- Treasury: share `0.20`, sensitivity `0.58`, report signal `0.60`
+
+Calculation:
+
+```text
+revenue_factor = 0.7650
+business_mix_factor = 0.3650
+annual_report_factor = 0.7230
+sector_concentration_factor = 1.0000
+raw_exposure = 0.7098
+score = 4
+```
+
+### Tata Motors
+
+Segments:
+
+- Jaguar Land Rover: share `0.72`, sensitivity `0.45`, report signal `0.40`
+- Commercial Vehicles: share `0.16`, sensitivity `0.78`, report signal `0.70`
+- Passenger Vehicles and EV: share `0.12`, sensitivity `0.90`, report signal `0.86`
+
+Calculation:
+
+```text
+revenue_factor = 0.5568
+business_mix_factor = 0.5584
+annual_report_factor = 0.5032
+sector_concentration_factor = 1.0000
+raw_exposure = 0.6102
+score = 4
+```
+
+### Reliance
+
+Segments:
+
+- Oil to Chemicals: share `0.37`, sensitivity `0.80`, report signal `0.65`
+- Retail: share `0.33`, sensitivity `0.35`, report signal `0.25`
+- Digital Services: share `0.20`, sensitivity `0.30`, report signal `0.30`
+- Oil and Gas: share `0.10`, sensitivity `0.85`, report signal `0.70`
+
+Calculation:
+
+```text
+revenue_factor = 0.5565
+business_mix_factor = 0.2958
+annual_report_factor = 0.4530
+sector_concentration_factor = 0.4700
+raw_exposure = 0.4655
+score = 3
+```
+
+## Implementation files
+
+- `backend/exposure_engine.py`: formulas and computation engine
+- `backend/exposure_refresh.py`: periodic refresh entry point
+- `backend/company_fundamentals.json`: structured segment inputs for examples
+- `backend/exposure_scores.json`: materialized output generated by refresh
+- `backend/exposure_schema.sql`: normalized persistence schema

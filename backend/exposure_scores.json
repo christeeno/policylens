@@ -1,0 +1,88 @@
+{
+  "refreshed_at": "2026-06-06T16:34:25.9793349Z",
+  "formula": {
+    "revenue_weight": 0.4,
+    "mix_weight": 0.2,
+    "annual_report_weight": 0.25,
+    "sector_concentration_weight": 0.15
+  },
+  "scores": {
+    "TATAMOTORS": {
+      "ticker": "TATAMOTORS",
+      "name": "Tata Motors",
+      "score_1_to_5": 4,
+      "raw_score": 0.6102,
+      "components": {
+        "revenue_factor": 0.5568,
+        "business_mix_factor": 0.5584,
+        "annual_report_factor": 0.5032,
+        "sector_concentration_factor": 1.0
+      },
+      "formula": {
+        "revenue_weight": 0.4,
+        "mix_weight": 0.2,
+        "annual_report_weight": 0.25,
+        "sector_concentration_weight": 0.15
+      },
+      "dominant_sector": "auto"
+    },
+    "PRAJIND": {
+      "ticker": "PRAJIND",
+      "name": "Praj Industries",
+      "score_1_to_5": 5,
+      "raw_score": 0.8132,
+      "components": {
+        "revenue_factor": 0.862,
+        "business_mix_factor": 0.6888,
+        "annual_report_factor": 0.8304,
+        "sector_concentration_factor": 0.82
+      },
+      "formula": {
+        "revenue_weight": 0.4,
+        "mix_weight": 0.2,
+        "annual_report_weight": 0.25,
+        "sector_concentration_weight": 0.15
+      },
+      "dominant_sector": "energy_transition"
+    },
+    "SBIN": {
+      "ticker": "SBIN",
+      "name": "State Bank of India",
+      "score_1_to_5": 4,
+      "raw_score": 0.7098,
+      "components": {
+        "revenue_factor": 0.765,
+        "business_mix_factor": 0.365,
+        "annual_report_factor": 0.723,
+        "sector_concentration_factor": 1.0
+      },
+      "formula": {
+        "revenue_weight": 0.4,
+        "mix_weight": 0.2,
+        "annual_report_weight": 0.25,
+        "sector_concentration_weight": 0.15
+      },
+      "dominant_sector": "banking"
+    },
+    "RELIANCE": {
+      "ticker": "RELIANCE",
+      "name": "Reliance Industries",
+      "score_1_to_5": 3,
+      "raw_score": 0.4655,
+      "components": {
+        "revenue_factor": 0.5565,
+        "business_mix_factor": 0.2958,
+        "annual_report_factor": 0.453,
+        "sector_concentration_factor": 0.47
+      },
+      "formula": {
+        "revenue_weight": 0.4,
+        "mix_weight": 0.2,
+        "annual_report_weight": 0.25,
+        "sector_concentration_weight": 0.15
+      },
+      "dominant_sector": "energy"
+    }
+  },
+  "source_file": "company_fundamentals.json"
+}
