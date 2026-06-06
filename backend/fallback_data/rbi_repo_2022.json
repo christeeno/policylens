@@ -1,0 +1,41 @@
+{
+  "report_id": "rbi-repo-2022",
+  "timestamp": "2022-08-05T10:00:00Z",
+  "source_url": "manual_input",
+  "policy_summary": "RBI increased the repo rate by 50 basis points to 5.40 percent to contain inflation. The standing deposit facility rate was also increased.",
+  "ministry": "RBI",
+  "key_change": "Repo rate raised by 50 basis points.",
+  "policy_type": "RATE_CHANGE",
+  "sectors": ["banking", "real_estate"],
+  "confidence": "HIGH",
+  "keyword_matches": {
+    "banking": ["repo rate", "inflation"],
+    "real_estate": ["repo rate"]
+  },
+  "stocks": [
+    {
+      "ticker": "SBIN",
+      "name": "State Bank of India",
+      "sector": "banking",
+      "direction": "NEGATIVE",
+      "score": -13.5,
+      "label": "Strong Negative",
+      "horizon": "SHORT",
+      "reason": "Higher cost of funds will compress net interest margins in the near term.",
+      "components": {"directness": 3, "exposure": 3, "rate_sensitivity": 3, "horizon": "SHORT"}
+    },
+    {
+      "ticker": "DLF",
+      "name": "DLF Limited",
+      "sector": "real_estate",
+      "direction": "NEGATIVE",
+      "score": -13.5,
+      "label": "Strong Negative",
+      "horizon": "SHORT",
+      "reason": "Higher borrowing costs will reduce housing affordability and dampen demand.",
+      "components": {"directness": 3, "exposure": 3, "rate_sensitivity": 3, "horizon": "SHORT"}
+    }
+  ],
+  "analyst_brief": "The RBI has aggressively hiked the repo rate by 50 basis points to combat persistent inflation, directly impacting the banking and real estate sectors. Top impacted stocks include State Bank of India and DLF, both facing strong negative headwinds due to rising cost of funds and reduced housing demand. Investors should brace for near-term volatility and potential NIM compression in rate-sensitive stocks.",
+  "processing_time_ms": 1200
+}

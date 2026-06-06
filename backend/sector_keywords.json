@@ -1,0 +1,42 @@
+{
+  "banking": {
+    "keywords": ["repo rate", "crr", "slr", "npa", "lending rate", "rbi circular", 
+                 "bank credit", "monetary policy", "interest rate", "liquidity"],
+    "description": "Banks, NBFCs, financial institutions"
+  },
+  "pharma": {
+    "keywords": ["drug pricing", "nppa", "api import", "fda", "patent", 
+                 "pharmaceutical", "medicine price", "drug approval", "clinical trial", "generic"],
+    "description": "Pharmaceutical and biotech companies"
+  },
+  "auto": {
+    "keywords": ["ev subsidy", "emission norm", "fuel price", "scrappage", "vehicle",
+                 "automobile", "electric vehicle", "bsvi", "charging infrastructure", "pli auto"],
+    "description": "Automobile manufacturers and ancillaries"
+  },
+  "real_estate": {
+    "keywords": ["home loan", "rera", "stamp duty", "affordable housing", "smart city",
+                 "construction", "real estate", "property tax", "housing finance", "pmay"],
+    "description": "Real estate developers and housing finance"
+  },
+  "it": {
+    "keywords": ["sez", "data localisation", "h1b", "export incentive", "software",
+                 "digital india", "it sector", "data protection", "technology policy", "startup"],
+    "description": "IT services and technology companies"
+  },
+  "energy": {
+    "keywords": ["crude oil", "fuel subsidy", "solar tariff", "coal", "renewable energy",
+                 "power sector", "electricity", "petroleum", "natural gas", "green hydrogen"],
+    "description": "Energy, power, and oil & gas companies"
+  },
+  "fmcg": {
+    "keywords": ["gst", "consumer goods", "fmcg", "retail", "food inflation",
+                 "packaging", "import duty fmcg", "commodity prices", "rural demand", "msp"],
+    "description": "Fast moving consumer goods companies"
+  },
+  "infrastructure": {
+    "keywords": ["infrastructure", "highway", "road", "port", "airport", "capex",
+                 "national infrastructure pipeline", "ppp", "toll", "construction tender"],
+    "description": "Infrastructure and construction companies"
+  }
+}

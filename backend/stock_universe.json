@@ -1,0 +1,52 @@
+{
+  "banking": {
+    "SBIN":      {"name": "State Bank of India",      "exposure": 3, "rate_sensitivity": 3, "type": "PSU"},
+    "HDFCBANK":  {"name": "HDFC Bank",                "exposure": 3, "rate_sensitivity": 2, "type": "Private"},
+    "ICICIBANK": {"name": "ICICI Bank",               "exposure": 3, "rate_sensitivity": 2, "type": "Private"},
+    "KOTAKBANK": {"name": "Kotak Mahindra Bank",      "exposure": 2, "rate_sensitivity": 1, "type": "Private"},
+    "AXISBANK":  {"name": "Axis Bank",                "exposure": 3, "rate_sensitivity": 2, "type": "Private"}
+  },
+  "pharma": {
+    "SUNPHARMA": {"name": "Sun Pharmaceutical",       "exposure": 3, "rate_sensitivity": 1, "type": "Large"},
+    "DRREDDY":   {"name": "Dr. Reddy's Laboratories", "exposure": 3, "rate_sensitivity": 1, "type": "Large"},
+    "CIPLA":     {"name": "Cipla",                    "exposure": 3, "rate_sensitivity": 1, "type": "Large"},
+    "DIVISLAB":  {"name": "Divi's Laboratories",      "exposure": 2, "rate_sensitivity": 1, "type": "Mid"}
+  },
+  "auto": {
+    "TATAMOTORS":  {"name": "Tata Motors",            "exposure": 3, "rate_sensitivity": 2, "type": "Large"},
+    "MARUTI":      {"name": "Maruti Suzuki",          "exposure": 3, "rate_sensitivity": 2, "type": "Large"},
+    "BAJAJ-AUTO":  {"name": "Bajaj Auto",             "exposure": 2, "rate_sensitivity": 1, "type": "Large"},
+    "HEROMOTOCO":  {"name": "Hero MotoCorp",          "exposure": 2, "rate_sensitivity": 1, "type": "Large"},
+    "M&M":         {"name": "Mahindra & Mahindra",    "exposure": 3, "rate_sensitivity": 2, "type": "Large"}
+  },
+  "real_estate": {
+    "DLF":         {"name": "DLF Limited",            "exposure": 3, "rate_sensitivity": 3, "type": "Large"},
+    "GODREJPROP":  {"name": "Godrej Properties",      "exposure": 3, "rate_sensitivity": 3, "type": "Large"},
+    "OBEROIRLTY":  {"name": "Oberoi Realty",          "exposure": 2, "rate_sensitivity": 2, "type": "Mid"},
+    "PRESTIGE":    {"name": "Prestige Estates",       "exposure": 3, "rate_sensitivity": 3, "type": "Mid"}
+  },
+  "it": {
+    "TCS":     {"name": "Tata Consultancy Services",  "exposure": 3, "rate_sensitivity": 1, "type": "Large"},
+    "INFY":    {"name": "Infosys",                    "exposure": 3, "rate_sensitivity": 1, "type": "Large"},
+    "WIPRO":   {"name": "Wipro",                      "exposure": 2, "rate_sensitivity": 1, "type": "Large"},
+    "HCLTECH": {"name": "HCL Technologies",           "exposure": 2, "rate_sensitivity": 1, "type": "Large"}
+  },
+  "energy": {
+    "RELIANCE":  {"name": "Reliance Industries",      "exposure": 3, "rate_sensitivity": 2, "type": "Large"},
+    "ONGC":      {"name": "ONGC",                     "exposure": 3, "rate_sensitivity": 1, "type": "PSU"},
+    "NTPC":      {"name": "NTPC",                     "exposure": 3, "rate_sensitivity": 2, "type": "PSU"},
+    "POWERGRID": {"name": "Power Grid Corporation",   "exposure": 2, "rate_sensitivity": 2, "type": "PSU"}
+  },
+  "fmcg": {
+    "HINDUNILVR": {"name": "Hindustan Unilever",      "exposure": 3, "rate_sensitivity": 1, "type": "Large"},
+    "ITC":        {"name": "ITC Limited",             "exposure": 2, "rate_sensitivity": 1, "type": "Large"},
+    "NESTLEIND":  {"name": "Nestle India",            "exposure": 2, "rate_sensitivity": 1, "type": "Large"},
+    "DABUR":      {"name": "Dabur India",             "exposure": 2, "rate_sensitivity": 1, "type": "Mid"}
+  },
+  "infrastructure": {
+    "LT":          {"name": "Larsen & Toubro",        "exposure": 3, "rate_sensitivity": 2, "type": "Large"},
+    "ADANIPORTS":  {"name": "Adani Ports",            "exposure": 3, "rate_sensitivity": 2, "type": "Large"},
+    "IRFC":        {"name": "Indian Railway Finance", "exposure": 2, "rate_sensitivity": 3, "type": "PSU"},
+    "NBCC":        {"name": "NBCC India",             "exposure": 3, "rate_sensitivity": 2, "type": "PSU"}
+  }
+}

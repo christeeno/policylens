@@ -1,0 +1,40 @@
+{
+  "report_id": "pli-ev-2021",
+  "timestamp": "2021-09-15T10:00:00Z",
+  "source_url": "manual_input",
+  "policy_summary": "The Cabinet approved a Rs 25,938 crore Production Linked Incentive scheme for Auto and Auto Components. The scheme provides incentives of 13 to 18 percent on incremental sales for EVs and hydrogen vehicles.",
+  "ministry": "Cabinet",
+  "key_change": "Approval of PLI scheme with Rs 25,938 crore outlay for EVs and Hydrogen fuel cells.",
+  "policy_type": "SUBSIDY",
+  "sectors": ["auto"],
+  "confidence": "HIGH",
+  "keyword_matches": {
+    "auto": ["electric vehicle", "pli auto", "hydrogen fuel cell"]
+  },
+  "stocks": [
+    {
+      "ticker": "TATAMOTORS",
+      "name": "Tata Motors",
+      "sector": "auto",
+      "direction": "POSITIVE",
+      "score": 13.5,
+      "label": "Strong Positive",
+      "horizon": "MEDIUM",
+      "reason": "Direct beneficiary of PLI incentives given aggressive EV portfolio expansion.",
+      "components": {"directness": 3, "exposure": 3, "rate_sensitivity": 2, "horizon": "MEDIUM"}
+    },
+    {
+      "ticker": "M&M",
+      "name": "Mahindra & Mahindra",
+      "sector": "auto",
+      "direction": "POSITIVE",
+      "score": 13.5,
+      "label": "Strong Positive",
+      "horizon": "MEDIUM",
+      "reason": "Boost to EV SUV lineup through 13-18% incremental sales incentive.",
+      "components": {"directness": 3, "exposure": 3, "rate_sensitivity": 2, "horizon": "MEDIUM"}
+    }
+  ],
+  "analyst_brief": "The Cabinet's Rs 25,938 crore PLI scheme is a massive structural tailwind for the domestic automobile sector, specifically targeting EV adoption. Tata Motors and Mahindra & Mahindra are the prime beneficiaries, poised to leverage the 13-18% sales incentives for their electric portfolios. This marks a definitive shift towards clean mobility, significantly re-rating auto OEMs with mature EV pipelines.",
+  "processing_time_ms": 1150
+}

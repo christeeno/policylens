@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+langchain
+langchain-google-genai
+feedparser
+beautifulsoup4
+aiohttp
+python-dotenv
+pydantic

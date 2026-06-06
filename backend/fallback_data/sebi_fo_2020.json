@@ -1,0 +1,40 @@
+{
+  "report_id": "sebi-fo-2020",
+  "timestamp": "2020-07-20T10:00:00Z",
+  "source_url": "manual_input",
+  "policy_summary": "SEBI revised the framework for margin obligations, requiring peak margins to be collected upfront for intraday positions by December 2020.",
+  "ministry": "SEBI",
+  "key_change": "Mandatory upfront collection of peak margins for intraday trades.",
+  "policy_type": "REGULATION",
+  "sectors": ["banking"],
+  "confidence": "MEDIUM",
+  "keyword_matches": {
+    "banking": ["margin", "intraday"]
+  },
+  "stocks": [
+    {
+      "ticker": "KOTAKBANK",
+      "name": "Kotak Mahindra Bank",
+      "sector": "banking",
+      "direction": "NEGATIVE",
+      "score": -4.5,
+      "label": "Moderate Negative",
+      "horizon": "MEDIUM",
+      "reason": "Brokerage subsidiary might see lower retail intraday volumes.",
+      "components": {"directness": 2, "exposure": 2, "rate_sensitivity": 1, "horizon": "MEDIUM"}
+    },
+    {
+      "ticker": "HDFCBANK",
+      "name": "HDFC Bank",
+      "sector": "banking",
+      "direction": "NEGATIVE",
+      "score": -4.5,
+      "label": "Moderate Negative",
+      "horizon": "MEDIUM",
+      "reason": "HDFC Securities volume could take a hit due to stricter margin rules.",
+      "components": {"directness": 2, "exposure": 3, "rate_sensitivity": 2, "horizon": "MEDIUM"}
+    }
+  ],
+  "analyst_brief": "SEBI's new regulation mandating upfront peak margin collection is set to squeeze intraday trading liquidity. While the broader banking sector is only moderately affected, entities with significant retail brokerage arms like Kotak Mahindra Bank and HDFC Bank face negative headwinds. This regulatory tightening will likely reshape retail trading behavior, leading to medium-term volume compression.",
+  "processing_time_ms": 1050
+}
