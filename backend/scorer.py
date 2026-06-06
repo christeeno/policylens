@@ -19,6 +19,13 @@ SECTOR_RANK_WEIGHTS = [1.0, 0.88, 0.76]
 OLD_PIPELINE_BASE_CALLS = 3
 OLD_PIPELINE_CONCURRENCY = 10
 ESTIMATED_GEMINI_CALL_MS = 1200
+RATE_SENSITIVITY_SCALE = {1: 0.75, 2: 1.0, 3: 1.25}
+MONETARY_POLICY_SECTOR_BETAS = {
+    "banking": {"repo": 0.10, "crr": -0.08, "liquidity": 0.04},
+    "nbfc": {"repo": -0.18, "crr": -0.04, "liquidity": 0.12},
+    "real_estate": {"repo": -0.28, "crr": -0.10, "liquidity": 0.08},
+    "auto": {"repo": -0.16, "crr": -0.05, "liquidity": 0.05},
+}
 
 SUPPORTED_SECTOR_HINTS = {
     "broad_market": "broad market, benchmark policy, economy-wide or index-level implications captured through Nifty 50",
@@ -52,6 +59,7 @@ class PolicyAnalysisResult(BaseModel):
     ministry: str
     key_change: str
     policy_type: str
+    analyst_brief: str
     sectors: list[str]
     confidence: str
     confidence_score: float = Field(ge=0.0, le=1.0)
@@ -124,45 +132,43 @@ def _extract_json_object(raw_response: Any) -> dict:
         return json.loads(match.group(0))
 
 
-def _build_policy_prompt(policy_text: str) -> str:
-    sector_guide = "\n".join(
-        f'- "{sector}": {description}'
-        for sector, description in SUPPORTED_SECTOR_HINTS.items()
-    )
+SINGLE_CALL_PROMPT_TEMPLATE = """You are a senior Indian policy and equity analyst.
 
-    return f"""You are a senior Indian policy and equity analyst.
+Analyze the policy announcement below and return exactly one valid JSON object.
 
-Analyze the policy announcement below and return a single JSON object with:
-- a short summary
-- issuing ministry or regulator
-- the single most important change
-- a policy type
-- the top 3 impacted sectors
+Your output must contain:
+- summary
+- ministry
+- policy_type
+- affected_sectors
+- confidence
+- analyst_brief
 
 Supported sectors:
 {sector_guide}
 
-Instructions:
-1. Rank sector impacts by first-order effect on listed Indian equities.
-2. Prefer supported sectors when appropriate, but you may return a new snake_case sector if the policy clearly targets an uncovered area.
-3. For each sector, provide:
-   - confidence_score between 0 and 1
-   - impact_direction: POSITIVE, NEGATIVE, or NEUTRAL
-   - impact_strength: HIGH, MEDIUM, or LOW
-   - impact_strength_score between 0 and 1
-   - reasoning
-   - evidence
-   - is_supported_sector
-4. Respond with valid JSON only.
+Rules:
+1. Use only the policy text provided.
+2. Keep summary to at most 2 sentences.
+3. Set ministry to the issuing ministry, regulator, department, or authority.
+4. Set key_change to the single most important policy action.
+5. policy_type must be one of: RATE_CHANGE, REGULATION, SUBSIDY, TAX, BAN, APPROVAL, LIQUIDITY, MONETARY_POLICY, OTHER.
+6. Return up to 3 affected sectors ranked by first-order impact on listed Indian equities.
+7. Prefer supported sectors when appropriate, but you may return a concise snake_case custom sector if clearly necessary.
+8. confidence must be HIGH, MEDIUM, or LOW.
+9. analyst_brief must be a 3-sentence investor-facing note grounded only in the policy text and sector impacts.
+10. Respond with JSON only. No markdown, no prose outside JSON.
 
 Required JSON schema:
 {{
   "summary": "<2 sentences max>",
   "ministry": "<issuer>",
   "key_change": "<single most important change>",
-  "policy_type": "<RATE_CHANGE | REGULATION | SUBSIDY | TAX | BAN | APPROVAL | LIQUIDITY | OTHER>",
+  "policy_type": "<RATE_CHANGE | REGULATION | SUBSIDY | TAX | BAN | APPROVAL | LIQUIDITY | MONETARY_POLICY | OTHER>",
+  "confidence": "<HIGH | MEDIUM | LOW>",
   "overall_confidence_score": <float 0 to 1>,
   "overall_reasoning": "<1-2 sentences>",
+  "analyst_brief": "<exactly 3 sentences>",
   "sector_impacts": [
     {{
       "sector": "<supported sector or concise snake_case custom sector>",
@@ -179,6 +185,17 @@ Required JSON schema:
 
 POLICY TEXT:
 {policy_text}"""
+
+
+def render_single_call_prompt(policy_text: str) -> str:
+    sector_guide = "\n".join(
+        f'- "{sector}": {description}'
+        for sector, description in SUPPORTED_SECTOR_HINTS.items()
+    )
+    return SINGLE_CALL_PROMPT_TEMPLATE.format(
+        sector_guide=sector_guide,
+        policy_text=policy_text,
+    )
 
 
 def _normalize_policy_response(raw_response: dict) -> dict:
@@ -235,6 +252,7 @@ def _normalize_policy_response(raw_response: dict) -> dict:
         "ministry": str(raw_response.get("ministry", "")).strip(),
         "key_change": str(raw_response.get("key_change", "")).strip(),
         "policy_type": str(raw_response.get("policy_type", "OTHER")).upper(),
+        "analyst_brief": str(raw_response.get("analyst_brief", "")).strip(),
         "sectors": [item["sector"] for item in ranked_impacts],
         "confidence": _confidence_label(overall_confidence),
         "confidence_score": round(overall_confidence, 2),
@@ -260,6 +278,7 @@ def analyze_policy(policy_text: str, llm: Any | None = None) -> dict:
             "ministry": "",
             "key_change": "",
             "policy_type": "OTHER",
+            "analyst_brief": "",
             "sectors": [],
             "confidence": "LOW",
             "confidence_score": 0.0,
@@ -269,7 +288,7 @@ def analyze_policy(policy_text: str, llm: Any | None = None) -> dict:
 
     try:
         client = llm or _get_llm()
-        prompt = _build_policy_prompt(policy_text)
+        prompt = render_single_call_prompt(policy_text)
         if hasattr(client, "invoke"):
             raw_response = client.invoke(prompt)
         elif callable(client):
@@ -283,6 +302,7 @@ def analyze_policy(policy_text: str, llm: Any | None = None) -> dict:
             "ministry": "",
             "key_change": "",
             "policy_type": "OTHER",
+            "analyst_brief": "",
             "sectors": [],
             "confidence": "LOW",
             "confidence_score": 0.0,
@@ -382,98 +402,254 @@ def _rate_transmission_multiplier(policy_type: str, rate_sensitivity: int) -> fl
     return 0.85 + (min(max(rate_sensitivity, 1), 3) * 0.15)
 
 
+def _policy_measure_text(policy_analysis: dict) -> str:
+    return " ".join(
+        str(policy_analysis.get(field, "")).strip()
+        for field in ("summary", "key_change", "reasoning")
+        if str(policy_analysis.get(field, "")).strip()
+    )
+
+
+def _extract_basis_points(text: str, pattern: str) -> int:
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    if not match:
+        return 0
+
+    amount = int(match.group("bps"))
+    direction = match.group("direction").lower()
+    if direction in {"cut", "reduced", "reduction", "decreased", "lowered", "eased"}:
+        return -amount
+    return amount
+
+
+def _extract_liquidity_signal(text: str) -> float:
+    normalized = text.lower()
+    positive_markers = (
+        "liquidity infusion",
+        "inject liquidity",
+        "liquidity support",
+        "accommodative stance",
+        "durable liquidity",
+        "open market purchase",
+        "omo purchase",
+    )
+    negative_markers = (
+        "liquidity absorption",
+        "absorb liquidity",
+        "withdraw liquidity",
+        "tightening stance",
+        "variable rate reverse repo",
+        "omo sale",
+    )
+
+    score = 0.0
+    if any(marker in normalized for marker in positive_markers):
+        score += 1.0
+    if any(marker in normalized for marker in negative_markers):
+        score -= 1.0
+    return max(-1.0, min(1.0, score))
+
+
+def extract_monetary_policy_shocks(policy_analysis: dict) -> dict:
+    text = _policy_measure_text(policy_analysis)
+    repo_bps = _extract_basis_points(
+        text,
+        r"repo rate[^.]{0,80}?(?P<direction>cut|hike|hiked|raised|increase|increased|reduced|reduction|decreased|lowered|eased)[^.]{0,40}?(?P<bps>\d+)\s*basis points",
+    )
+    if repo_bps == 0:
+        repo_bps = _extract_basis_points(
+            text,
+            r"(?P<bps>\d+)\s*basis points[^.]{0,50}?(?P<direction>cut|hike|hiked|raised|increase|increased|reduced|reduction|decreased|lowered|eased)[^.]{0,50}?repo rate",
+        )
+
+    crr_bps = _extract_basis_points(
+        text,
+        r"\bcrr\b[^.]{0,80}?(?P<direction>cut|hike|hiked|raised|increase|increased|reduced|reduction|decreased|lowered)[^.]{0,40}?(?P<bps>\d+)\s*basis points",
+    )
+    if crr_bps == 0:
+        crr_bps = _extract_basis_points(
+            text,
+            r"(?P<bps>\d+)\s*basis points[^.]{0,50}?(?P<direction>cut|hike|hiked|raised|increase|increased|reduced|reduction|decreased|lowered)[^.]{0,50}?\bcrr\b",
+        )
+
+    return {
+        "repo_bps": repo_bps,
+        "crr_bps": crr_bps,
+        "liquidity_signal": _extract_liquidity_signal(text),
+        "is_rbi_policy": (
+            "rbi" in text.lower()
+            or "reserve bank of india" in text.lower()
+            or str(policy_analysis.get("policy_type", "")).upper() in POLICY_TYPE_RATE_SENSITIVE
+        ),
+    }
+
+
+def _sector_policy_bucket(sector: str) -> str | None:
+    normalized = _normalize_sector_name(sector)
+    if normalized in MONETARY_POLICY_SECTOR_BETAS:
+        return normalized
+    if normalized in {"bank", "banks", "banking", "financials", "finance"}:
+        return "banking"
+    if normalized in {"nbfc", "nbfcs", "housing_finance", "consumer_finance"}:
+        return "nbfc"
+    return None
+
+
+def _monetary_policy_multiplier(policy_analysis: dict, sector: str, rate_sensitivity: int) -> tuple[float, dict]:
+    shocks = extract_monetary_policy_shocks(policy_analysis)
+    bucket = _sector_policy_bucket(sector)
+    if not shocks["is_rbi_policy"] or bucket is None:
+        return 1.0, {
+            "repo_bps": shocks["repo_bps"],
+            "crr_bps": shocks["crr_bps"],
+            "liquidity_signal": shocks["liquidity_signal"],
+            "policy_bucket": bucket,
+            "multiplier": 1.0,
+            "repo_component": 0.0,
+            "crr_component": 0.0,
+            "liquidity_component": 0.0,
+            "policy_shock": 0.0,
+        }
+
+    sensitivity_scale = RATE_SENSITIVITY_SCALE[min(max(int(rate_sensitivity), 1), 3)]
+    betas = MONETARY_POLICY_SECTOR_BETAS[bucket]
+    repo_component = (shocks["repo_bps"] / 25.0) * betas["repo"] * sensitivity_scale
+    crr_component = (shocks["crr_bps"] / 25.0) * betas["crr"] * sensitivity_scale
+    liquidity_component = shocks["liquidity_signal"] * betas["liquidity"] * sensitivity_scale
+    policy_shock = repo_component + crr_component + liquidity_component
+    multiplier = max(0.4, min(1.75, 1.0 + policy_shock))
+
+    return multiplier, {
+        "repo_bps": shocks["repo_bps"],
+        "crr_bps": shocks["crr_bps"],
+        "liquidity_signal": shocks["liquidity_signal"],
+        "policy_bucket": bucket,
+        "multiplier": round(multiplier, 3),
+        "repo_component": round(repo_component, 3),
+        "crr_component": round(crr_component, 3),
+        "liquidity_component": round(liquidity_component, 3),
+        "policy_shock": round(policy_shock, 3),
+    }
+
+
 def _sector_rank_weight(rank_index: int) -> float:
     return SECTOR_RANK_WEIGHTS[min(rank_index, len(SECTOR_RANK_WEIGHTS) - 1)]
+
+
+def calculate_score(task: dict, policy_analysis: dict, sector_rank_map: dict[str, int] | None = None) -> dict:
+    sector_rank_map = sector_rank_map or {}
+    policy_type = str(policy_analysis.get("policy_type", "OTHER")).upper()
+    try:
+        exposure_score, exposure_details = resolve_exposure(task["ticker"], task)
+    except Exception:
+        exposure_score = int(task.get("base_exposure", 1))
+        exposure_details = None
+
+    exposure_factor = max(1, min(exposure_score, 5)) / 5
+    universe_factor = max(1, min(int(task.get("base_exposure", 1)), 5)) / 5
+    rate_multiplier = _rate_transmission_multiplier(policy_type, int(task.get("rate_sensitivity", 1)))
+
+    weighted_score = 0.0
+    top_sector = task["matched_sectors"][0] if task["matched_sectors"] else "broad_market"
+    top_sector_magnitude = -1.0
+    representative = None
+    policy_overlay = None
+
+    for impact in task["sector_impacts"]:
+        direction_score = DIRECTION_SCORES.get(str(impact.get("impact_direction", "NEUTRAL")).upper(), 0)
+        rank_weight = _sector_rank_weight(sector_rank_map.get(impact.get("sector"), 0))
+        sector_alignment_score = _coerce_float(impact.get("confidence_score"), 0.0) * rank_weight
+        transmission_factor = _coerce_float(
+            impact.get("impact_strength_score"),
+            IMPACT_STRENGTH_SCORES.get(str(impact.get("impact_strength", "LOW")).upper(), 0.35),
+        )
+        policy_multiplier, overlay_components = _monetary_policy_multiplier(
+            policy_analysis,
+            str(impact.get("sector", "")),
+            int(task.get("rate_sensitivity", 1)),
+        )
+        sector_component = direction_score * sector_alignment_score * transmission_factor * rate_multiplier * policy_multiplier
+        magnitude = abs(sector_component)
+        if magnitude > top_sector_magnitude:
+            top_sector_magnitude = magnitude
+            top_sector = impact["sector"]
+            representative = impact
+            policy_overlay = overlay_components
+        weighted_score += sector_component
+
+    composite_exposure = (0.7 * universe_factor) + (0.3 * exposure_factor)
+    final_score = round(weighted_score * composite_exposure * 10, 2)
+    primary_impact = representative or {}
+    direction = str(primary_impact.get("impact_direction", "NEUTRAL")).upper()
+    label = (
+        "Strong Positive" if final_score >= 6 else
+        "Moderate Positive" if final_score >= 2 else
+        "Neutral" if final_score > -2 else
+        "Moderate Negative" if final_score > -6 else
+        "Strong Negative"
+    )
+
+    return {
+        "ticker": task["ticker"],
+        "name": task["name"],
+        "sector": top_sector,
+        "matched_sectors": task["matched_sectors"],
+        "source_indices": task["source_indices"],
+        "direction": direction,
+        "score": final_score,
+        "label": label,
+        "reason": str(primary_impact.get("reasoning", "")).strip() or "Deterministic sector-based ranking.",
+        "components": {
+            "direction_score": DIRECTION_SCORES.get(direction, 0),
+            "sector_alignment_score": round(
+                _coerce_float(primary_impact.get("confidence_score"), 0.0)
+                * _sector_rank_weight(sector_rank_map.get(top_sector, 0)),
+                2,
+            ),
+            "transmission_factor": round(
+                _coerce_float(
+                    primary_impact.get("impact_strength_score"),
+                    IMPACT_STRENGTH_SCORES.get(str(primary_impact.get("impact_strength", "LOW")).upper(), 0.35),
+                )
+                * rate_multiplier,
+                2,
+            ),
+            "exposure": exposure_score,
+            "universe_weight_score": round(universe_factor, 2),
+            "rate_sensitivity": task["rate_sensitivity"],
+            "monetary_policy_multiplier": round(1.0 if not policy_overlay else policy_overlay["multiplier"], 2),
+            "policy_measures": policy_overlay or {
+                "repo_bps": 0,
+                "crr_bps": 0,
+                "liquidity_signal": 0.0,
+                "policy_bucket": None,
+                "multiplier": 1.0,
+                "repo_component": 0.0,
+                "crr_component": 0.0,
+                "liquidity_component": 0.0,
+                "policy_shock": 0.0,
+            },
+        },
+        "exposure_details": exposure_details,
+    }
 
 
 def score_all_stocks(policy_analysis: dict, force_refresh_universe: bool = False) -> list[dict]:
     tasks, sector_lookup = _build_stock_tasks(policy_analysis, force_refresh_universe=force_refresh_universe)
     results = []
-    policy_type = str(policy_analysis.get("policy_type", "OTHER")).upper()
     sector_rank_map = {
         detail.get("sector"): index
         for index, detail in enumerate(policy_analysis.get("sector_details", []))
     }
 
     for task in tasks:
-        try:
-            exposure_score, exposure_details = resolve_exposure(task["ticker"], task)
-        except Exception:
-            exposure_score = int(task.get("base_exposure", 1))
-            exposure_details = None
-        exposure_factor = max(1, min(exposure_score, 5)) / 5
-        universe_factor = max(1, min(task["base_exposure"], 5)) / 5
-        rate_multiplier = _rate_transmission_multiplier(policy_type, task["rate_sensitivity"])
-
-        weighted_score = 0.0
-        top_sector = task["matched_sectors"][0] if task["matched_sectors"] else "broad_market"
-        top_sector_magnitude = -1.0
-        representative = None
-
-        for impact in task["sector_impacts"]:
-            direction_score = DIRECTION_SCORES.get(str(impact.get("impact_direction", "NEUTRAL")).upper(), 0)
-            rank_weight = _sector_rank_weight(sector_rank_map.get(impact.get("sector"), 0))
-            sector_alignment_score = _coerce_float(impact.get("confidence_score"), 0.0) * rank_weight
-            transmission_factor = _coerce_float(
-                impact.get("impact_strength_score"),
-                IMPACT_STRENGTH_SCORES.get(str(impact.get("impact_strength", "LOW")).upper(), 0.35),
-            )
-            sector_component = direction_score * sector_alignment_score * transmission_factor
-            magnitude = abs(sector_component)
-            if magnitude > top_sector_magnitude:
-                top_sector_magnitude = magnitude
-                top_sector = impact["sector"]
-                representative = impact
-            weighted_score += sector_component
-
-        composite_exposure = (0.7 * universe_factor) + (0.3 * exposure_factor)
-        final_score = round(weighted_score * composite_exposure * rate_multiplier * 10, 2)
-        if final_score == 0:
+        scored = calculate_score(task, policy_analysis, sector_rank_map=sector_rank_map)
+        if scored["score"] == 0:
             continue
-
-        primary_impact = representative or sector_lookup.get(top_sector, {})
-        direction = str(primary_impact.get("impact_direction", "NEUTRAL")).upper()
-        label = (
-            "Strong Positive" if final_score >= 6 else
-            "Moderate Positive" if final_score >= 2 else
-            "Neutral" if final_score > -2 else
-            "Moderate Negative" if final_score > -6 else
-            "Strong Negative"
-        )
-
-        results.append(
-            {
-                "ticker": task["ticker"],
-                "name": task["name"],
-                "sector": top_sector,
-                "matched_sectors": task["matched_sectors"],
-                "source_indices": task["source_indices"],
-                "direction": direction,
-                "score": final_score,
-                "label": label,
-                "reason": str(primary_impact.get("reasoning", "")).strip() or "Deterministic sector-based ranking.",
-                "components": {
-                    "direction_score": DIRECTION_SCORES.get(direction, 0),
-                    "sector_alignment_score": round(
-                        _coerce_float(primary_impact.get("confidence_score"), 0.0)
-                        * _sector_rank_weight(sector_rank_map.get(top_sector, 0)),
-                        2,
-                    ),
-                    "transmission_factor": round(
-                        _coerce_float(
-                            primary_impact.get("impact_strength_score"),
-                            IMPACT_STRENGTH_SCORES.get(str(primary_impact.get("impact_strength", "LOW")).upper(), 0.35),
-                        )
-                        * rate_multiplier,
-                        2,
-                    ),
-                    "exposure": exposure_score,
-                    "universe_weight_score": round(universe_factor, 2),
-                    "rate_sensitivity": task["rate_sensitivity"],
-                },
-                "exposure_details": exposure_details,
-            }
-        )
+        if not scored.get("reason"):
+            primary = sector_lookup.get(scored["sector"], {})
+            scored["reason"] = str(primary.get("reasoning", "")).strip() or scored["reason"]
+        results.append(scored)
 
     results.sort(key=lambda item: (abs(item["score"]), item["score"]), reverse=True)
     return results
@@ -534,8 +710,14 @@ sector_alignment_score = sector_confidence_score * sector_rank_weight
 Sentiment replacement:
 direction_score = +1 for POSITIVE, -1 for NEGATIVE, 0 for NEUTRAL
 
-Horizon replacement:
-transmission_factor = impact_strength_score * rate_transmission_multiplier(policy_type, rate_sensitivity)
+Monetary-policy overlay for RBI-linked announcements:
+repo_component = (repo_bps / 25) * sector_repo_beta * rate_sensitivity_scale
+crr_component = (crr_bps / 25) * sector_crr_beta * rate_sensitivity_scale
+liquidity_component = liquidity_signal * sector_liquidity_beta * rate_sensitivity_scale
+monetary_policy_multiplier = clamp(1 + repo_component + crr_component + liquidity_component, 0.4, 1.75)
+
+Transmission replacement:
+transmission_factor = impact_strength_score * rate_transmission_multiplier(policy_type, rate_sensitivity) * monetary_policy_multiplier
 
 Deterministic stock score:
 weighted_sector_component = direction_score * sector_alignment_score * transmission_factor

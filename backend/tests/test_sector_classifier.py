@@ -27,6 +27,7 @@ class PolicyAnalysisTests(unittest.TestCase):
                 "ministry": "Reserve Bank of India",
                 "key_change": "Policy repo rate increased by 50 basis points.",
                 "policy_type": "RATE_CHANGE",
+                "analyst_brief": "The RBI has tightened monetary policy with a 50 basis point repo hike. Banks and other rate-sensitive sectors should react first as lending and funding costs reset. Investors should watch transmission into mortgages, auto finance, and credit growth.",
                 "overall_confidence_score": 0.91,
                 "overall_reasoning": "Banks and rate-sensitive sectors react first to repo changes.",
                 "sector_impacts": [
@@ -73,6 +74,7 @@ class PolicyAnalysisTests(unittest.TestCase):
         self.assertEqual(result["sectors"], ["banking", "real_estate", "auto"])
         self.assertEqual(result["confidence"], "HIGH")
         self.assertEqual(result["policy_type"], "RATE_CHANGE")
+        self.assertIn("repo hike", result["analyst_brief"].lower())
         self.assertEqual(result["sector_details"][0]["impact_direction"], "POSITIVE")
         self.assertEqual(result["sector_details"][1]["impact_strength"], "HIGH")
 
@@ -85,6 +87,7 @@ class PolicyAnalysisTests(unittest.TestCase):
                     "ministry": "Cabinet Committee on Security",
                     "key_change": "Domestic sourcing norms were tightened for defence procurement.",
                     "policy_type": "APPROVAL",
+                    "analyst_brief": "The defence procurement push directly favors local manufacturers. Domestic sourcing requirements should create immediate demand visibility for defence platforms and components. Infrastructure spillovers are secondary and less direct.",
                     "overall_confidence_score": 0.68,
                     "overall_reasoning": "Defence procurement is primary and infrastructure is secondary.",
                     "sector_impacts": [
@@ -137,6 +140,7 @@ class PolicyAnalysisTests(unittest.TestCase):
                     "ministry": "RBI",
                     "key_change": "Rate increased.",
                     "policy_type": "RATE_CHANGE",
+                    "analyst_brief": "The RBI has raised rates again. Banks are the clearest first-order transmission channel. Investors should expect funding conditions to tighten.",
                     "overall_confidence_score": 0.8,
                     "overall_reasoning": "Banks are the first-order impact.",
                     "sector_impacts": [
@@ -273,6 +277,121 @@ class PolicyAnalysisTests(unittest.TestCase):
         self.assertGreater(metrics["old"]["gemini_calls"], 10)
         self.assertGreaterEqual(metrics["improvement"]["llm_call_reduction_pct"], 90.0)
         self.assertGreater(metrics["improvement"]["latency_reduction_pct"], 50.0)
+
+    @patch("scorer.resolve_exposure", return_value=(3, {"ticker": "RATECUT"}))
+    def test_calculate_score_repo_cut_favors_rate_beneficiaries(self, _mock_resolve_exposure):
+        policy_analysis = {
+            "summary": "The RBI announced a 50 basis points repo rate cut and a liquidity infusion.",
+            "key_change": "Repo rate cut by 50 basis points.",
+            "reasoning": "Lower borrowing costs support credit demand.",
+            "policy_type": "RATE_CHANGE",
+        }
+        sector_rank_map = {"banking": 0, "real_estate": 1, "auto": 2}
+        impact_template = {
+            "confidence_score": 0.9,
+            "impact_strength": "HIGH",
+            "impact_strength_score": 0.9,
+            "reasoning": "RBI action transmits quickly.",
+        }
+
+        bank_result = scorer.calculate_score(
+            {
+                "ticker": "BANK1",
+                "name": "Bank One",
+                "type": "Bank",
+                "base_exposure": 3,
+                "rate_sensitivity": 3,
+                "matched_sectors": ["banking"],
+                "source_indices": ["NIFTY BANK"],
+                "sector_impacts": [{**impact_template, "sector": "banking", "impact_direction": "POSITIVE"}],
+            },
+            policy_analysis,
+            sector_rank_map,
+        )
+        realty_result = scorer.calculate_score(
+            {
+                "ticker": "REAL1",
+                "name": "Realty One",
+                "type": "Real Estate",
+                "base_exposure": 3,
+                "rate_sensitivity": 3,
+                "matched_sectors": ["real_estate"],
+                "source_indices": ["NIFTY REALTY"],
+                "sector_impacts": [{**impact_template, "sector": "real_estate", "impact_direction": "POSITIVE"}],
+            },
+            policy_analysis,
+            sector_rank_map,
+        )
+        auto_result = scorer.calculate_score(
+            {
+                "ticker": "AUTO1",
+                "name": "Auto One",
+                "type": "Auto",
+                "base_exposure": 3,
+                "rate_sensitivity": 2,
+                "matched_sectors": ["auto"],
+                "source_indices": ["NIFTY AUTO"],
+                "sector_impacts": [{**impact_template, "sector": "auto", "impact_direction": "POSITIVE"}],
+            },
+            policy_analysis,
+            sector_rank_map,
+        )
+
+        self.assertLess(bank_result["components"]["monetary_policy_multiplier"], 1.0)
+        self.assertGreater(realty_result["components"]["monetary_policy_multiplier"], 1.0)
+        self.assertGreater(auto_result["components"]["monetary_policy_multiplier"], 1.0)
+        self.assertGreater(realty_result["score"], bank_result["score"])
+        self.assertEqual(realty_result["components"]["policy_measures"]["repo_bps"], -50)
+
+    @patch("scorer.resolve_exposure", return_value=(3, {"ticker": "RATEHIKE"}))
+    def test_calculate_score_repo_hike_supports_banks_and_hurts_nbfcs(self, _mock_resolve_exposure):
+        policy_analysis = {
+            "summary": "The RBI increased the repo rate by 25 basis points and kept liquidity tight.",
+            "key_change": "Repo rate hiked by 25 basis points.",
+            "reasoning": "The central bank is tightening monetary conditions.",
+            "policy_type": "RATE_CHANGE",
+        }
+        impact_template = {
+            "confidence_score": 0.92,
+            "impact_strength": "HIGH",
+            "impact_strength_score": 0.88,
+            "reasoning": "Funding conditions change immediately.",
+        }
+
+        bank_result = scorer.calculate_score(
+            {
+                "ticker": "BANK2",
+                "name": "Bank Two",
+                "type": "Bank",
+                "base_exposure": 3,
+                "rate_sensitivity": 3,
+                "matched_sectors": ["banking"],
+                "source_indices": ["NIFTY BANK"],
+                "sector_impacts": [{**impact_template, "sector": "banking", "impact_direction": "POSITIVE"}],
+            },
+            policy_analysis,
+            {"banking": 0},
+        )
+        nbfc_result = scorer.calculate_score(
+            {
+                "ticker": "NBFC1",
+                "name": "NBFC One",
+                "type": "NBFC",
+                "base_exposure": 3,
+                "rate_sensitivity": 3,
+                "matched_sectors": ["nbfc"],
+                "source_indices": ["CUSTOM NBFC"],
+                "sector_impacts": [{**impact_template, "sector": "nbfc", "impact_direction": "POSITIVE"}],
+            },
+            policy_analysis,
+            {"nbfc": 0},
+        )
+
+        self.assertGreater(bank_result["components"]["monetary_policy_multiplier"], 1.0)
+        self.assertLess(nbfc_result["components"]["monetary_policy_multiplier"], 1.0)
+        self.assertGreater(bank_result["score"], nbfc_result["score"])
+        self.assertEqual(nbfc_result["components"]["policy_measures"]["policy_bucket"], "nbfc")
+        self.assertEqual(bank_result["components"]["policy_measures"]["repo_bps"], 25)
 
 
 if __name__ == "__main__":
