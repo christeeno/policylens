@@ -40,7 +40,7 @@ This project also uses an AI-powered analysis pipeline to classify policy events
 Add your demo or pitch video link here.
 
 Suggested format:
-- Demo video: `<paste-video-link>`
+- Demo video: `https://drive.google.com/file/d/1KS-lTywnmvSqgwfbvgehLiyoDPRQvVvh/view?usp=sharing`
 - GitHub repo: `https://github.com/christeeno/policylens`
 
 ## Screenshots
